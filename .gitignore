@@ -2,6 +2,7 @@
 .DS_File
 .ropeproject
 .python-version
+openssl
 
 # Python
 __pycache__
