@@ -2,7 +2,7 @@
 
 A simple Python project that creates a man-in-the-middle proxy utilizing the standard `Asyncio` library. As of now, this project does not route the clients traffic to its original location - instead, it blocks and responds with a message (either with or without TLS).
 
-![img](https://i.imgur.com/elflATe.png)
+![img](https://i.imgur.com/fuJQxui.png)
 
 ## Requirements
 
