@@ -1,5 +1,5 @@
-from mitm.server import ManInTheMiddle
+from mitm import ManInTheMiddle
 import asyncio
 
-mitm = ManInTheMiddle(data=b"Server reply! (HTTP or HTTPS)\n")
-asyncio.run(mitm.start_server())
+mitm = ManInTheMiddle(host="127.0.0.1", port=8080)
+asyncio.run(mitm.start())

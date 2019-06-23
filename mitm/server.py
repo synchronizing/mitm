@@ -1,125 +1,124 @@
-from mitm.gen_keys import create_self_signed_cert
+from .gen_keys import create_self_signed_cert
 
 from http_parser.parser import HttpParser
-from termcolor import colored
 import asyncio
 import ssl
-import os
+
+from termcolor import colored
 
 
-class Http(asyncio.Protocol):
-    def __init__(self, data):
-        super().__init__()
-
-        self.data = data
-
-        # Creates our HttpParser object.
-        self.http_parser = HttpParser()
-
-        # Creates the placeholder for the transport.
-        self.transport = None
-
-        # Placeholder for client information.
-        self.client_addr = None
-        self.client_ip = None
-
+class HTTP(asyncio.Protocol):
     def connection_made(self, transport):
         self.transport = transport
 
-        # Saves info about client.
-        self.client_addr, self.client_ip = self.transport.get_extra_info("peername")
-
-    def request_received(self):
-        self.transport.write(
-            b"HTTP/1.1 200 OK\r\n" + b"Connection: close\r\n\r\n" + self.data
-        )
-        self.close()
-
     def data_received(self, data):
         # Prints the data the client has sent.
-        print(data.decode())
+        print(data)
 
-        # HTTP Parser reads the clients data and stores results in different methods.
-        self.http_parser.execute(data, len(data))
-        if self.http_parser.is_message_complete():
-            self.request_received()
+        # Writes back the client.
+        self.transport.write(b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n")
+        self.transport.write(b"This seems to be working. Replying from HTTP.")
+
+        # Closest the connection with the client, and prints info.
+        self.transport.close()
+        print(colored("CLOSING CONNECTION\n", "red"))
 
     def close(self):
-        # Prints closing client information.
-        print(colored(f"CLOSING {self.client_addr}:{self.client_ip}\n", "red"))
-
         self.transport.close()
 
 
-class Https(Http):
-    def __init__(self, data):
-        super().__init__(data)
-
+class Interceptor(asyncio.Protocol):
+    def __init__(self):
         # Loading the protocol certificates.
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
         ssl_context.load_cert_chain("ssl/server.crt", "ssl/server.key")
 
-        # Opening our SSL transport.
-        self.transport_ssl = asyncio.sslproto.SSLProtocol(
+        # Initiates the HttpParser object.
+        self.http_parser = HttpParser()
+
+        # Creates the TLS flag.
+        self.using_tls = False
+
+        # Initiating our HTTP transport.
+        self.HTTP_Protocol = HTTP()
+
+        # Setting our SSL context for the server.
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+        ssl_context.load_cert_chain("ssl/server.crt", "ssl/server.key")
+
+        # Opening our HTTPS transport.
+        self.HTTPS_Protocol = asyncio.sslproto.SSLProtocol(
             loop=asyncio.get_running_loop(),
-            app_protocol=Http(self.data),
+            app_protocol=self.HTTP_Protocol,
             sslcontext=ssl_context,
             waiter=None,
             server_side=True,
         )
 
-        # Client information.
-        self.client_method = False
-
     def connection_made(self, transport):
-        super().connection_made(transport)
+        """ Called when client makes initial connection to the server. Receives a transporting object from the client. """
+
+        # Setting our transport object.
+        self.transport = transport
+
+        # Getting the client address and port number.
+        self.client_addr, self.client_ip = self.transport.get_extra_info("peername")
 
         # Prints opening client information.
-        print(colored(f"OPENED {self.client_addr}:{self.client_ip}\n\n", "blue"))
-
-    def request_received(self):
-        self.client_method = self.http_parser.get_method()
-        if self.client_method == "CONNECT":
-            # Replies to client that the HTTPS server has connected.
-            self.transport.write(b"HTTP/1.1 200 OK\r\n\r\n")
-            # Creates the SSL handshake.
-            self.transport_ssl.connection_made(self.transport)
-        else:
-            super().request_received()
+        print(colored(f"CONNECTING WITH {self.client_addr}:{self.client_ip}", "blue"))
 
     def data_received(self, data):
-        if self.client_method == "CONNECT":
-            # Receives data via the HTTPS protocol.
-            self.transport_ssl.data_received(data)
+        """
+            Called when a connected client sends data to the server; HTTP or HTTPS requests.
+
+            Note:
+                This method is called multiple times during a typical TLS/SSL connection with a client.
+                    1. Client sends server message to connect; "CONNECT."
+                    2. Server replies with "OK" and begins handshake.
+                    3. Client sends server encrypted HTTP requests; "GET", "POST", etc.
+        """
+
+        # Parses the data the client has sent to the server.
+        self.http_parser.execute(data, len(data))
+
+        if self.http_parser.get_method() == "CONNECT" and self.using_tls == False:
+            # Replies to the client that the server has connected.
+            self.transport.write(b"HTTP/1.1 200 OK\r\n\r\n")
+            # Does a TLS/SSL handshake with the client.
+            self.HTTPS_Protocol.connection_made(self.transport)
+            self.using_tls = True
+
+            # Prints the data the client has sent. Since this is the initial 'CONNECT' data, it will be unencrypted.
+            print(data)
+        elif self.using_tls:
+            # With HTTPS protocol enabled, receives encrypted data from the client.
+            self.HTTPS_Protocol.data_received(data)
         else:
-            # Receives data via the HTTP protocol.
-            super().data_received(data)
+            # Receives standard, non-encrypted data from the client (TLS/SSL is off).
+            self.HTTP_Protocol.connection_made(self.transport)
+            self.HTTP_Protocol.data_received(data)
 
 
 class ManInTheMiddle(object):
-    def __init__(self, data, addr="127.0.0.1", port=8888):
-        self.data = data
-        self.addr, self.port = addr, port
-        self.generate_keys()
+    def __init__(self, host="127.0.0.1", port=8080, gen_ssl=True):
+        # Generates self-signed SSL certificates.
+        if gen_ssl:
+            create_self_signed_cert()
 
-    def generate_keys(self):
-        if not os.path.exists("ssl"):
-            os.makedirs("ssl")
+        self.loop = None
 
-        create_self_signed_cert()
-
-    async def start_server(self):
-        # Get event loop.
+    async def start(self):
+        # Gets the current event loop (or creates one).
         self.loop = asyncio.get_event_loop()
 
-        # Starts the server.
-        server = await self.loop.create_server(
-            lambda: Https(self.data), host=self.addr, port=self.port
+        # Creates the server instance.
+        self.server = await self.loop.create_server(
+            Interceptor, host="127.0.0.1", port=8888
         )
 
         # Prints information about the server.
-        ip, port = server.sockets[0].getsockname()
+        ip, port = self.server.sockets[0].getsockname()
         print(colored("Routing traffic on server {}:{}.\n".format(ip, port), "green"))
 
-        # Starts the server.
-        await server.serve_forever()
+        # Starts the server instance.
+        await self.server.serve_forever()
