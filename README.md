@@ -14,7 +14,7 @@ client <-> mitm (server) <-> mitm (emulated client) <-> server
 ```
 Where the client speaks with the `mitm (server)`, and on behalf of the client, the `mitm (emulated client)` speaks to to the server. The HTTP/HTTPS request and response data is then captured in the middle and printed to console.
 
-This project was originally programmed for an advance public proxy management tool and not actually for reasons of exploit. I do caution those that wish to use this for harm, and do not condone the use of this software for such reasons. 
+This project was originally programmed for an advance public proxy management tool and not actually for reasons of exploit. I do caution those that wish to use this for harm, and do not condone the use of this software for such reasons.
 
 ## Requirements
 
@@ -41,7 +41,7 @@ Initializing the proxy is fairly easy.
 from mitm.server import ManInTheMiddle
 import asyncio
 
-mitm = ManInTheMiddle(host="127.0.0.1", port=8080)
+mitm = ManInTheMiddle(host="127.0.0.1", port=8888)
 asyncio.run(mitm.start())
 ```
 
