@@ -1,8 +1,20 @@
 # 👨🏼‍💻 Man In The Middle
 
-A simple Python project that creates a man-in-the-middle proxy utilizing the standard `Asyncio` library. As of now, this project does not route the clients traffic to its original location - instead, it blocks and responds with a message (either with or without TLS).
+A simple Python project that creates a man-in-the-middle proxy utilizing the standard `Asyncio` library. This project allows you to intercept HTTP and HTTPS traffic via a simple proxy service.
 
-![img](https://i.imgur.com/fuJQxui.png)
+![img](https://i.imgur.com/ehPTMCh.png)
+
+This program does not utilize advance tactics like `sslbump`, but rather a very primitive (and often prevented) method of simply replying back to the client with forged certificates. To accomplish a man-in-the-middle attack with TLS this program will generate a self-signed key/certificate that will be utilized to talk back and forth with the client, while simultaneously talking with the destination server. If you imagine a typical connection being:
+```
+client <-> server
+```
+This program will do the following:
+```
+client <-> mitm (server) <-> mitm (emulated client) <-> server
+```
+Where the client speaks with the `mitm (server)`, and on behalf of the client, the `mitm (emulated client)` speaks to to the server. The HTTP/HTTPS request and response data is then captured in the middle and printed to console.
+
+This project was originally programmed for an advance public proxy management tool and not actually for reasons of exploit. I do caution those that wish to use this for harm, and do not condone the use of this software for such reasons. 
 
 ## Requirements
 
