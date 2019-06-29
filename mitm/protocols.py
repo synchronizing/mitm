@@ -7,9 +7,9 @@ import ssl
 
 
 class HTTP(asyncio.Protocol):
-    def __init__(self):
+    def __init__(self, using_ssl):
         # Starting our emulated client. This object talks with the server.
-        self.emulated_client = EmulatedClient()
+        self.emulated_client = EmulatedClient(using_ssl=using_ssl)
 
     def connection_made(self, transport):
         self.transport = transport
@@ -55,7 +55,7 @@ class Interceptor(asyncio.Protocol):
         self.using_tls = False
 
         # Initiating our HTTP transport with the emulated client.
-        self.HTTP_Protocol = HTTP()
+        self.HTTP_Protocol = HTTP(using_ssl=False)
 
         # Setting our SSL context for the server.
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
@@ -64,7 +64,7 @@ class Interceptor(asyncio.Protocol):
         # Opening our HTTPS transport.
         self.HTTPS_Protocol = asyncio.sslproto.SSLProtocol(
             loop=asyncio.get_running_loop(),
-            app_protocol=self.HTTP_Protocol,
+            app_protocol=HTTP(using_ssl=True),
             sslcontext=ssl_context,
             waiter=None,
             server_side=True,
@@ -101,6 +101,7 @@ class Interceptor(asyncio.Protocol):
             self.transport.write(b"HTTP/1.1 200 OK\r\n\r\n")
             # Does a TLS/SSL handshake with the client.
             self.HTTPS_Protocol.connection_made(self.transport)
+            # Sets our TLS flag to true.
             self.using_tls = True
 
             # Prints the data the client has sent. Since this is the initial 'CONNECT' data, it will be unencrypted.
