@@ -1,5 +1,4 @@
 from http_parser.parser import HttpParser
-import asyncio
 import aiohttp
 
 
