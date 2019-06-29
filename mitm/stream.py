@@ -49,41 +49,11 @@ class EmulatedClient(object):
                 headers = response.headers
                 response = await response.read()
 
+        # Re-creates the servers response.
         resp = f"HTTP/1.1 {status} {reason}\r\n".encode("latin-1")
-
         for header in headers:
             resp += f"{header}: {headers[header]}\r\n".encode("latin-1")
-
         resp += b"\r\n" + response
 
         # Returns the data.
         return resp
-
-    async def _connect(self, data):
-        # Parses the data coming in.
-        self.http_parser.execute(data, len(data))
-
-        # Creates the connection to the data server.
-        self.reader, self.writer = await asyncio.open_connection(
-            self.http_parser.get_headers()["HOST"], 80
-        )
-
-        # Shoots the query over.
-        self.writer.write(data)
-
-        # Tell the client that this is the end of our data.
-        self.writer.write_eof()
-
-        # Gets the corresponding reply from the server.
-        line = b""
-        while True:
-            curr_line = await self.reader.readline()
-            if not curr_line:
-                break
-            line += curr_line
-
-        # Closes the writer.
-        self.writer.close()
-
-        # Returns the data.
-        return line
