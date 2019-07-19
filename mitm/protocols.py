@@ -25,7 +25,7 @@ class HTTP(asyncio.Protocol):
 
     async def reply(self, data):
         # Gathering the reply from the emulated client.
-        reply = (await asyncio.gather(self.emulated_client.connect(data)))[0]
+        reply = await self.emulated_client.connect(data)
 
         # Writing back to the client.
         self.transport.write(reply)
