@@ -44,18 +44,14 @@ class HTTP(asyncio.Protocol):
 
 class Interceptor(asyncio.Protocol):
     def __init__(self):
-        # Loading the protocol certificates.
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-        ssl_context.load_cert_chain("ssl/server.crt", "ssl/server.key")
-
         # Initiates the HttpParser object.
         self.http_parser = HttpParser()
 
-        # Creates the TLS flag.
-        self.using_tls = False
-
         # Initiating our HTTP transport with the emulated client.
         self.HTTP_Protocol = HTTP(using_ssl=False)
+
+        # Creates the TLS flag.
+        self.using_tls = False
 
         # Setting our SSL context for the server.
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
