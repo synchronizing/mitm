@@ -7,3 +7,6 @@ openssl
 # Python
 __pycache__
 mitm.*
+
+# SSL Certificates
+*ssl

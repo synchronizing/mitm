@@ -1,3 +1,4 @@
 PyOpenSSL
 termcolor
+aiohttp
 git+https://github.com/benoitc/http-parser
