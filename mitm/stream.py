@@ -1,5 +1,10 @@
-from http_parser.parser import HttpParser
-import aiohttp
+import select
+import socket
+import ssl
+
+from .request import HTTPRequest
+
+socket.setdefaulttimeout(3)
 
 
 class EmulatedClient(object):
@@ -20,39 +25,43 @@ class EmulatedClient(object):
             retrieved from the server on behalf of the client.
     """
 
-    def __init__(self, using_ssl):
-        # Creates our HttpParser object.
-        self.http_parser = HttpParser()
+    def send_request(self, connect, data):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        # Sets flag to whether or not we are using SSL.
-        self.using_ssl = using_ssl
+        # Parses the data.
+        data_request = HTTPRequest(data)
 
-    async def connect(self, data):
-        # Parses the data coming in.
-        self.http_parser.execute(data, len(data))
+        if connect:
+            connect_request = HTTPRequest(connect)
+            path = connect_request.path.split(":")
+            sever_address = (path[0], int(path[1]))
 
-        host = self.http_parser.get_wsgi_environ()["HTTP_HOST"]
-        uri = self.http_parser.get_wsgi_environ()["RAW_URI"]
-
-        # Sets the proper URL client is trying to reach.
-        if self.using_ssl:
-            url = f"https://{host}:{uri}"
+            sock.connect(sever_address)
+            sock = ssl.wrap_socket(
+                sock,
+                keyfile=None,
+                certfile=None,
+                server_side=False,
+                cert_reqs=ssl.CERT_NONE,
+                ssl_version=ssl.PROTOCOL_SSLv23,
+            )
         else:
-            url = uri
+            server_address = (data_request.headers["HOST"], 80)
+            sock.connect(server_address)
 
-        # Retrieves the destination server data.
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, ssl=False) as response:
-                status = response.status
-                reason = response.reason
-                headers = response.headers
-                response = await response.read()
+        sock.send(data)
 
-        # Re-creates the servers response.
-        resp = f"HTTP/1.1 {status} {reason}\r\n".encode("latin-1")
-        for header in headers:
-            resp += f"{header}: {headers[header]}\r\n".encode("latin-1")
-        resp += b"\r\n" + response
+        resp = b""
 
-        # Returns the data.
+        while True:
+            try:
+                buf = sock.recv(1024)
+                if not buf:
+                    break
+                else:
+                    resp += buf
+            except Exception as e:
+                print("ERROR!!", e)
+                break
+
         return resp
