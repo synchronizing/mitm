@@ -14,13 +14,12 @@ client <-> mitm (server) <-> mitm (emulated client) <-> server
 ```
 Where the client speaks with `mitm (server)` and on behalf of the client the `mitm (emulated client)` speaks to to the destination server. The HTTP/HTTPS request and response data is then captured in both pipes and transmitted back and forth while the requests and response are printed to the console.
 
-This project was originally programmed for an advance public proxy management tool and not actually for reasons of exploit. I do caution those that wish to use this for harm, and do not condone the use of this software for such reasons. Use it at your own risk. 
+This project was originally programmed for an advance public proxy management tool and not actually for reasons of exploit. I do caution those that wish to use this for harm, and do not condone the use of this software for such reasons. Use it at your own risk.
 
 ## Requirements
 
 * You must have OpenSSL 1.1.1 or greater.
 * [PyOpenSSL](https://github.com/pyca/pyopenssl): Generate the SSL certificate and key.
-* [http-parser](https://github.com/benoitc/http-parser): Parse the http request coming into the server.
 * [term-color](https://pypi.org/project/termcolor/): Prettify the outputs.
 
 ## Installing
