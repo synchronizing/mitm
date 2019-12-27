@@ -1,15 +1,18 @@
-from .stream import EmulatedClient
-
 from termcolor import colored
-from http_parser.parser import HttpParser
 import asyncio
 import ssl
 
+from .stream import EmulatedClient
+from .request import HTTPRequest
+
 
 class HTTP(asyncio.Protocol):
-    def __init__(self, using_ssl):
+    def __init__(self):
         # Starting our emulated client. This object talks with the server.
-        self.emulated_client = EmulatedClient(using_ssl=using_ssl)
+        self.emulated_client = EmulatedClient()
+
+        # Stores the CONNECT statement if HTTPS protocol used.
+        self.connect_statement = None
 
     def connection_made(self, transport):
         self.transport = transport
@@ -20,19 +23,27 @@ class HTTP(asyncio.Protocol):
         print(data)
 
         # Starting our emulated client.
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.reply(data))
+        self.reply(data)
 
-    async def reply(self, data):
-        # Gathering the reply from the emulated client.
-        reply = await self.emulated_client.connect(data)
+    def ssl_connect(self, data):
+        # Stores and prints the SSL CONNECT statement.
+        self.connect_statement = data
+        print(self.connect_statement)
+
+    def reply(self, data):
+        if self.connect_statement:
+            reply = self.emulated_client.send_request(
+                connect=self.connect_statement, data=data
+            )
+        else:
+            reply = self.emulated_client.send_request(connect=None, data=data)
 
         # Writing back to the client.
         self.transport.write(reply)
 
         # Printing the reply back to console.
         print(colored("\nSERVER REPLY:\n", "yellow"))
-        print(reply, "\n")
+        # print(reply, "\n")
 
         # Closing connection with the client.
         self.close()
@@ -44,27 +55,24 @@ class HTTP(asyncio.Protocol):
 
 class Interceptor(asyncio.Protocol):
     def __init__(self):
-        # Initiates the HttpParser object.
-        self.http_parser = HttpParser()
-
         # Initiating our HTTP transport with the emulated client.
-        self.HTTP_Protocol = HTTP(using_ssl=False)
+        self.HTTP_Protocol = HTTP()
 
-        # Creates the TLS flag.
-        self.using_tls = False
-
-        # Setting our SSL context for the server.
+        # Setting our SSL context for the HTTPS server.
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
         ssl_context.load_cert_chain("ssl/server.crt", "ssl/server.key")
 
         # Opening our HTTPS transport.
         self.HTTPS_Protocol = asyncio.sslproto.SSLProtocol(
             loop=asyncio.get_running_loop(),
-            app_protocol=HTTP(using_ssl=True),
+            app_protocol=HTTP(),
             sslcontext=ssl_context,
             waiter=None,
             server_side=True,
         )
+
+        # Creates the TLS flag.
+        self.using_tls = False
 
     def connection_made(self, transport):
         """ Called when client makes initial connection to the server. Receives a transporting object from the client. """
@@ -90,9 +98,8 @@ class Interceptor(asyncio.Protocol):
         """
 
         # Parses the data the client has sent to the server.
-        self.http_parser.execute(data, len(data))
-
-        if self.http_parser.get_method() == "CONNECT" and self.using_tls == False:
+        request = HTTPRequest(data)
+        if request.command == "CONNECT" and self.using_tls == False:
             # Replies to the client that the server has connected.
             self.transport.write(b"HTTP/1.1 200 OK\r\n\r\n")
             # Does a TLS/SSL handshake with the client.
@@ -100,8 +107,9 @@ class Interceptor(asyncio.Protocol):
             # Sets our TLS flag to true.
             self.using_tls = True
 
-            # Prints the data the client has sent. Since this is the initial 'CONNECT' data, it will be unencrypted.
-            print(data)
+            # Sends the CONNECT to the HTTPS_Protocol protocol for storage and print.
+            # Since this is the initial 'CONNECT' data, it will be unencrypted.
+            self.HTTPS_Protocol._app_protocol.ssl_connect(data)
         elif self.using_tls:
             # With HTTPS protocol enabled, receives encrypted data from the client.
             self.HTTPS_Protocol.data_received(data)
