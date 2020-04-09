@@ -137,7 +137,7 @@ class Interceptor(asyncio.Protocol):
     requests. When a client sends a request to an outbound server (say google.com),
     the Interceptor will intercept the clients connection and create an
     asyncio.Transporter to communicate back and forth with the client. After
-    connecting with the clien the Interceptor will interpret the client's request
+    connecting with the client the Interceptor will interpret the client's request
     and send it either to the HTTP or HTTPS protocol (depending if the clients
     request contains the HTTP CONNECT method or not).
 
