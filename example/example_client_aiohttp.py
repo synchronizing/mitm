@@ -1,4 +1,4 @@
-from termcolor import colored
+from mitm import color
 import asyncio
 import aiohttp
 
@@ -13,5 +13,5 @@ async def get_ip(protocol):
             return await response.text()
 
 
-print(colored("HTTP Reply:\n", "green"), asyncio.run(get_ip(protocol="http")), "\n")
-print(colored("HTTPS Reply:\n", "green"), asyncio.run(get_ip(protocol="https")))
+print(color.green("HTTP Reply:\n"), asyncio.run(get_ip(protocol="http")), "\n")
+print(color.green("HTTPS Reply:\n"), asyncio.run(get_ip(protocol="https")))

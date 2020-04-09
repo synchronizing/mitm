@@ -1,5 +1,5 @@
+from mitm import color
 import requests
-from termcolor import colored
 
 
 def get_ip(protocol):
@@ -10,5 +10,5 @@ def get_ip(protocol):
     ).text
 
 
-print(colored("HTTP Reply:\n", "green"), get_ip(protocol="http"), "\n")
-print(colored("HTTPS Reply:\n", "green"), get_ip(protocol="https"))
+print(color.green("HTTP Reply:\n"), get_ip(protocol="http"), "\n")
+print(color.green("HTTPS Reply:\n"), get_ip(protocol="https"))
