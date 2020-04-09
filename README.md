@@ -2,7 +2,7 @@
 
 A simple Python project that creates a man-in-the-middle proxy utilizing the standard `Asyncio` library. This project allows you to intercept HTTP and HTTPS traffic via a simple proxy service.
 
-![img](https://i.imgur.com/ehPTMCh.png)
+![img](https://i.imgur.com/81wMxgK.png)
 
 This program does not utilize advance tactics like `sslbump` but rather a very primitive (and often prevented) method for HTTP/HTTPS tampering. To accomplish a man-in-the-middle attack with TLS support `mitm` will generate a self-signed key/certificate that will be utilized to talk back and forth with the client while simultaneously talking with the destination server. If you imagine a typical connection being:
 ```
