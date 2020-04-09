@@ -1,3 +1,1 @@
-PyOpenSSL
-termcolor
-aiohttp
+PyOpenSSL==19.1.0

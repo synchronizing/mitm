@@ -20,7 +20,6 @@ This project was originally programmed for an advance public proxy management to
 
 * You must have OpenSSL 1.1.1 or greater.
 * [PyOpenSSL](https://github.com/pyca/pyopenssl): Generate the SSL certificate and key.
-* [term-color](https://pypi.org/project/termcolor/): Prettify the outputs.
 
 ## Installing
 
@@ -37,11 +36,9 @@ $ pip install .
 Initializing the proxy is fairly easy.
 
 ```python
-from mitm.server import ManInTheMiddle
-import asyncio
+from mitm import ManInTheMiddle
 
-mitm = ManInTheMiddle(host="127.0.0.1", port=8888)
-asyncio.run(mitm.start())
+ManInTheMiddle(host="127.0.0.1", port=8888).run()
 ```
 
 Once the server is up and running you may either redirect any traffic to the proxy via explicit methods:
