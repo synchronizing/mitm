@@ -43,10 +43,6 @@ class HTTP(asyncio.Protocol):
         connect_statement (bytes):  The HTTP CONNECT method message.
     """
 
-    def __init__(self):
-        # Starting our emulated client. This object talks with the server.
-        self.emulated_client = EmulatedClient()
-
     def connection_made(self, transport):
         self.transport = transport
 
