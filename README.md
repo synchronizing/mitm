@@ -1,60 +1,119 @@
-# 👨🏼‍💻 mitm: Man In The Middle
+# 👨‍💻 mitm: Man in the Middle
 
-A simple Python project that creates a man-in-the-middle proxy utilizing the standard `Asyncio` library. This project allows you to intercept HTTP and HTTPS traffic via a simple proxy service.
-
-![img](https://i.imgur.com/81wMxgK.png)
-
-This program does not utilize advance tactics like `sslbump` but rather a very primitive (and often prevented) method for HTTP/HTTPS tampering. To accomplish a man-in-the-middle attack with TLS support `mitm` will generate a self-signed key/certificate that will be utilized to talk back and forth with the client while simultaneously talking with the destination server. If you imagine a typical connection being:
-```
-client <-> server
-```
-This program will do the following:
-```
-client <-> mitm (server) <-> mitm (emulated client) <-> server
-```
-Where the client speaks with `mitm (server)` and on behalf of the client the `mitm (emulated client)` speaks to to the destination server. The HTTP/HTTPS request and response data is then captured in both pipes and transmitted back and forth while the requests and response are printed to the console.
-
-This project was originally programmed for an advance public proxy management tool and not actually for reasons of exploit. I do caution those that wish to use this for harm, and do not condone the use of this software for such reasons. Use it at your own risk.
-
-## Requirements
-
-* You must have OpenSSL 1.1.1 or greater.
-* [PyOpenSSL](https://github.com/pyca/pyopenssl): Generate the SSL certificate and key.
+A customizable man-in-the-middle proxy with support for HTTP and HTTPS.
 
 ## Installing
 
-Simply clone the project, install, and use.
+I'm currently working on getting PyPi's `mitm` page. As of right now, you can install via GitHub:
 
-```bash
-$ git clone https://github.com/synchronizing/mitm
-$ cd mitm
-$ pip install .
 ```
+pip install http://github.com/synchronizing/mitm
+```
+
+Note that OpenSSL 1.1.1 or greater is required.
+
+## Why?
+
+This project was originally built for learning purposes (see old [repo]()), but has been expanded to be a more customizable man-in-the-middle proxy for larger projects.
+
+#### What's the difference between this project and `mitmproxy`?
+
+Purpose, implementation, and customization style. The purpose of `mitm` is to be a light-weight customizable man-in-the-middle proxy intended for larger projects. `mitmproxy` (with its beautiful CLI) seems to be more for _interactive_ request and response tampering and capturing. While it does support everything `mitm` does plus more, it lacks asynchronous support and is clearly much more advance.
+
+## Implementation
+
+`mitm` utilizes a very primative method for HTTP and HTTPS capturing. To accomplish a man-in-the-middle with TLS support `mitm` generates a self-signed key/certificate that is used to speak back-and-forth with the client and destination server. If you imagine a typical connection looking like so:
+
+```
+client <-> server
+```
+
+`mitm` does the following:
+
+```
+client <-> mitm (server) <-> mitm (emulated client) <-> server
+```
+
+Where the client speaks with `mitm (server)` and on behalf of the client the `mitm (emulated client)` speaks to to the destination server. The HTTP/HTTPS request and response data is then captured in both pipes and transmitted back and forth.
 
 ## Using
 
-Initializing the proxy is fairly easy.
+By itself `mitm` is not very special. You can boot it up and view debug messages quite easily:
 
-```python
-from mitm import ManInTheMiddle
-
-ManInTheMiddle(host="127.0.0.1", port=8888).run()
+```
+mitm --debug start
 ```
 
-Once the server is up and running you may either redirect any traffic to the proxy via explicit methods:
+`mitm` becomes more useful when you either inherit and extend `mitm.MITM`, or utilize the built-in middleware system.
 
-```python
+### Inheriting
+
+For more complex modifications to `mitm` you can inherit from `mitm.MITM` to modify the default behavior of how the proxy works. Things like modifying the default TLS configuration, modifying connection behavior, or even changing client behavior can be done. 
+
+### Middleware
+
+`mitm` has support for custom middlewares to allow programmatic customizations to incoming and outgoing web requests. To initialize a middleware, simply create a class that inherits from `mitm.Middleware`:
+
+```
+from mitm import MITM, Config, Middleware
+
+
+class PrintFlow(Middleware):
+    async def client_data(self, request) -> bytes:
+        print("Client sent:\n\n", request.decode())
+        return request
+
+    async def server_data(self, response) -> bytes:
+        print("Server replied:\n\n", response.decode())
+        return response
+
+
+config = Config(middlewares=[PrintFlow])
+MITM.start(config)
+```
+
+Running the above, and then in a different script running:
+
+```
 import requests
-proxies = {"http": "127.0.0.1:8888", "https": "127.0.0.1:8888"}
-requests.get("http://api.ipify.org?format=json", proxies=proxies, verify=False).text
-requests.get("https://api.ipify.org?format=json", proxies=proxies, verify=False).text
+
+proxies = {"http": "http://127.0.0.1:8888", "https": "http://127.0.0.1:8888"}
+requests.get("https://api.ipify.org?format=json", proxies=proxies, verify=False)
 ```
 
-Or implicit, via setting the environmental variables `http_proxy` and `https_proxy`, and then using `requests` or `aiohttp` without setting proxies.
+Will yield the following printout:
 
-```bash
-export http_proxy=http://127.0.0.1:8888
-export https_proxy=http://127.0.0.1:8888
+```
+2021-11-03 15:30:11 INFO     Booting up server on 127.0.0.1:8888.
+2021-11-03 15:30:12 INFO     Client 127.0.0.1:55802 has connected.
+
+Client sent:
+
+CONNECT api.ipify.org:443 HTTP/1.0
+
+
+Client sent:
+
+GET /?format=json HTTP/1.1
+Host: api.ipify.org
+User-Agent: python-requests/2.26.0
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+
+
+Server replied:
+
+HTTP/1.1 200 OK
+Server: Cowboy
+Connection: keep-alive
+Content-Type: application/json
+Vary: Origin
+Date: Wed, 03 Nov 2021 19:30:14 GMT
+Content-Length: 23
+Via: 1.1 vegur
+
+{"ip":"174.64.123.133"}
 ```
 
-Either way will work.
+You can modify the request and response data in the middleware before returning.
