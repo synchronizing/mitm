@@ -14,7 +14,7 @@ Note that OpenSSL 1.1.1 or greater is required.
 
 ## Why?
 
-This project was originally built for learning purposes (see old [repo]()), but has been expanded to be a more customizable man-in-the-middle proxy for larger projects.
+This project was originally built for learning purposes (see old [repo](https://github.com/synchronizing/mitm/tree/d9b3a4932eeab6cba68f84338137c4fd254437a9)), but has been expanded to be a more customizable man-in-the-middle proxy for larger projects.
 
 #### What's the difference between this project and `mitmproxy`?
 
@@ -54,7 +54,7 @@ For more complex modifications to `mitm` you can inherit from `mitm.MITM` to mod
 
 `mitm` has support for custom middlewares to allow programmatic customizations to incoming and outgoing web requests. To initialize a middleware, simply create a class that inherits from `mitm.Middleware`:
 
-```
+```python
 from mitm import MITM, Config, Middleware
 
 
@@ -74,7 +74,7 @@ MITM.start(config)
 
 Running the above, and then in a different script running:
 
-```
+```python
 import requests
 
 proxies = {"http": "http://127.0.0.1:8888", "https": "http://127.0.0.1:8888"}
