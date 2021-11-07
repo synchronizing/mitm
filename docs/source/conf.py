@@ -61,7 +61,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
     "sphinx.ext.autodoc",
-    "m2r2",
     "sphinx_copybutton",
 ]
 

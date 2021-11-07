@@ -2,5 +2,5 @@ sphinx
 sphinx-copybutton
 sphinx-autobuild
 furo
-git+git://github.com/synchronizing/sphinx-autodoc-typehints
-git+git://github.com/night-project/mitm/
+git+https://github.com/synchronizing/sphinx-autodoc-typehints.git
+git+https://github.com/night-project/mitm.git
