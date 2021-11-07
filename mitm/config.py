@@ -1,8 +1,8 @@
 """
-Configuration module.
+Configuration settings for mitm.
 """
 
-from typing import Dict
+from typing import List
 import logging
 import pathlib
 import asyncio
@@ -10,6 +10,7 @@ import asyncio
 import appdirs
 
 from . import __author__, __project__, crypto
+from .middleware import Middleware
 
 logger = logging.getLogger(__package__)
 
@@ -27,9 +28,29 @@ class Config:
         rsa_key: pathlib.Path = data_directory / "mitm.key",
         rsa_cert: pathlib.Path = data_directory / "mitm.crt",
         rsa_generate: bool = True,
-        middlewares: Dict["str", "middleware.Middleware"] = {},
+        middlewares: List[Middleware] = [],
         log_level: int = logging.INFO,
-    ) -> None:
+    ) :
+        """
+        Configuration settings for the man-in-the-middle server.
+
+        Note:
+            The RSA key and certificate are stored in the operating system data
+            directory as specified by the `appdirs <https://github.com/ActiveState/appdirs>`_
+            module.
+
+        Args:
+            loop: The event loop to use. Defaults to the current event loop.
+            host: The host to bind to. Defaults to ``127.0.0.1``.
+            port: The port to bind to. Defaults to ``8888``.
+            buffer_size: The size of the buffer to use for reading. Defaults to ``2048``.
+            rsa_key: Path to the RSA key to use. Defaults to the OS' data directory.
+            rsa_cert: Path to the RSA cert to use. Defaults to the OS' data directory.
+            rsa_generate: Whether to generate a new RSA key and cert. Defaults to ``True``.
+            middlewares: Middlewares to use. Defaults empty list.
+            log_level: The log level to use. Defaults to ``logging.INFO``.
+        """
+
         # Asyncio settings.
         self.loop = loop
 
@@ -60,14 +81,26 @@ class Config:
         # Middleware
         self.middlewares = middlewares
 
-    def add_middleware(self, name: str, middleware: "middleware.Middleware"):
-        self.middlewares[name] = middleware
+    def add_middleware(self, middleware: Middleware):
+        """
+        Add a middleware to the configuration.
 
-    def remove_middleware(self, name: str):
-        if name in self.middlewares:
-            del self.middlewares[name]
+        Args:
+            middleware: The middleware to add.
+        """
+        self.middlewares.append(middleware)
+
+    def remove_middleware(self, middleware: Middleware):
+        """
+        Remove a middleware from the configuration.
+
+        Args:
+            middleware: The middleware to remove.
+        """
+        if middleware in self.middlewares:
+            self.middlewares.remove(middleware)
         else:
-            raise KeyError(f"Middleware {name} not found.")
+            raise KeyError(f"Middleware {middleware.__name__} not found.")
 
     @property
     def log_level(self):

@@ -1,6 +1,6 @@
 # 👨‍💻 mitm: Man in the Middle
 
-A customizable man-in-the-middle proxy with support for HTTP and HTTPS.
+A customizable man-in-the-middle proxy with support for HTTP and HTTPS capturing.
 
 ## Installing
 
@@ -12,36 +12,21 @@ pip install http://github.com/synchronizing/mitm
 
 Note that OpenSSL 1.1.1 or greater is required.
 
-## Why?
+## Documentation
 
-This project was originally built for learning purposes (see old [repo](https://github.com/synchronizing/mitm/tree/d9b3a4932eeab6cba68f84338137c4fd254437a9)), but has been expanded to be a more customizable man-in-the-middle proxy for larger projects.
-
-#### What's the difference between this project and `mitmproxy`?
-
-Purpose, implementation, and customization style. The purpose of `mitm` is to be a light-weight customizable man-in-the-middle proxy intended for larger projects. `mitmproxy` (with its beautiful CLI) seems to be more for _interactive_ request and response tampering and capturing. While it does support everything `mitm` does plus more, it lacks asynchronous support and is clearly much more advance.
-
-## Implementation
-
-`mitm` utilizes a very primative method for HTTP and HTTPS capturing. To accomplish a man-in-the-middle with TLS support `mitm` generates a self-signed key/certificate that is used to speak back-and-forth with the client and destination server. If you imagine a typical connection looking like so:
-
-```
-client <-> server
-```
-
-`mitm` does the following:
-
-```
-client <-> mitm (server) <-> mitm (emulated client) <-> server
-```
-
-Where the client speaks with `mitm (server)` and on behalf of the client the `mitm (emulated client)` speaks to to the destination server. The HTTP/HTTPS request and response data is then captured in both pipes and transmitted back and forth.
+Documentation can be found [here](). PDF version of docs can be found [here]().
 
 ## Using
 
 By itself `mitm` is not very special. You can boot it up and view debug messages quite easily:
 
-```
-mitm --debug start
+```python
+from mitm import MITM, Config
+import logging
+
+config = Config(log_level=logging.DEBUG)
+mitm = MITM(config)
+mitm.start()
 ```
 
 `mitm` becomes more useful when you either inherit and extend `mitm.MITM`, or utilize the built-in middleware system.
@@ -67,9 +52,8 @@ class PrintFlow(Middleware):
         print("Server replied:\n\n", response.decode())
         return response
 
-
-config = Config(middlewares=[PrintFlow])
-MITM.start(config)
+mitm = MITM()
+mitm.start()
 ```
 
 Running the above, and then in a different script running:
@@ -78,24 +62,23 @@ Running the above, and then in a different script running:
 import requests
 
 proxies = {"http": "http://127.0.0.1:8888", "https": "http://127.0.0.1:8888"}
-requests.get("https://api.ipify.org?format=json", proxies=proxies, verify=False)
+requests.get("https://httpbin.org/anything", proxies=proxies, verify=False)
 ```
 
-Will yield the following printout:
+Will yield the following print-out:
 
 ```
-2021-11-03 15:30:11 INFO     Booting up server on 127.0.0.1:8888.
-2021-11-03 15:30:12 INFO     Client 127.0.0.1:55802 has connected.
+2021-11-05 16:32:57 INFO     Booting up server on 127.0.0.1:8888.
+2021-11-05 16:33:00 INFO     Client 127.0.0.1:57373 has connected.
+Client sent:
+
+CONNECT httpbin.org:443 HTTP/1.0
+
 
 Client sent:
 
-CONNECT api.ipify.org:443 HTTP/1.0
-
-
-Client sent:
-
-GET /?format=json HTTP/1.1
-Host: api.ipify.org
+GET /anything HTTP/1.1
+Host: httpbin.org
 User-Agent: python-requests/2.26.0
 Accept-Encoding: gzip, deflate
 Accept: */*
@@ -105,15 +88,33 @@ Connection: keep-alive
 Server replied:
 
 HTTP/1.1 200 OK
-Server: Cowboy
-Connection: keep-alive
+Date: Fri, 05 Nov 2021 20:33:01 GMT
 Content-Type: application/json
-Vary: Origin
-Date: Wed, 03 Nov 2021 19:30:14 GMT
-Content-Length: 23
-Via: 1.1 vegur
+Content-Length: 396
+Connection: keep-alive
+Server: gunicorn/19.9.0
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Credentials: true
 
-{"ip":"174.64.123.133"}
+{
+  "args": {}, 
+  "data": "", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Accept-Encoding": "gzip, deflate", 
+    "Host": "httpbin.org", 
+    "User-Agent": "python-requests/2.26.0", 
+    "X-Amzn-Trace-Id": "Root=1-618594fd-2027236d11ccb6a7334a5800"
+  }, 
+  "json": null, 
+  "method": "GET", 
+  "origin": "174.64.123.133", 
+  "url": "https://httpbin.org/anything"
+}
+
+2021-11-05 16:33:01 INFO     Successfully closed connection with 127.0.0.1:57373.
 ```
 
-You can modify the request and response data in the middleware before returning.
+You can modify the request and response data in the middleware before returning. You can read more of this in the documentation.

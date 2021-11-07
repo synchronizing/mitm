@@ -1,5 +1,5 @@
 """
-Module with crypto related functions.
+Cryptography functionalities for mitm.
 """
 
 import random
@@ -17,6 +17,8 @@ def new_RSA(bits: int = 1024) -> crypto.PKey:
         :py:func:`new_pair` to understand how to generate a valid RSA and X509 pair for
         SSL/TLS use.
 
+    Args:
+        bits: Size of the RSA key. Defaults to 1024.
     """
 
     rsa = crypto.PKey()
@@ -44,15 +46,15 @@ def new_X509(
         SSL/TLS use.
 
     Args:
-        country_name: Country name code.
-        state_or_province_name: State or province name. Can be any.
-        locality: Locality name. Can be any.
-        organization_name: Name of the org generating the cert.
-        organization_unit_name: Name of the subunit of the org generating cert.
-        common_name: Server name protected by the SSL certificate.
-        serial_number: A unique serial number. Any number between 0 and 2^159-1.
-        time_not_before: Time for which certificate is valid from. 0 means now.
-        time_not_after: Time for which certificate is not valid from. Defaults to 5 years.
+        country_name: Country name code. Defaults to ``US``.
+        state_or_province_name: State or province name. Defaults to ``New York``.
+        locality: Locality name. Can be any. Defaults to ``New York``.
+        organization_name: Name of the org generating the cert. Defaults to ``mitm``.
+        organization_unit_name: Name of the subunit of the org. Defaults to ``mitm``.
+        common_name: Server name protected by the SSL cert. Defaults to hostname.
+        serial_number: A unique serial number. Any number between 0 and 2^159-1. Defaults to random number.
+        time_not_before: Time since cert is valid. 0 means now. Defaults to ``0``.
+        time_not_after: Time when cert is no longer valid. Defaults to 5 years.
     """
 
     cert = crypto.X509()

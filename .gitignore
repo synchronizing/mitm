@@ -2,12 +2,17 @@
 .DS_Store
 .ropeproject
 .python-version
+.vscode
 openssl
 
 # Python
 __pycache__
-mitm.*
+*.egg-info
 .eggs
 
-# SSL Certificates
-*ssl
+# Documentation
+docs/build/
+
+# PyTest + Coverage
+.pytest_cache
+.coverage
