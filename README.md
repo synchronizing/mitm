@@ -42,18 +42,20 @@ For more complex modifications to `mitm` you can inherit from `mitm.MITM` to mod
 ```python
 from mitm import MITM, Config, Middleware
 
-
 class PrintFlow(Middleware):
     async def client_data(self, request) -> bytes:
-        print("Client sent:\n\n", request.decode())
+        print("Client sent:\n\n\t", request, "\n")
         return request
 
     async def server_data(self, response) -> bytes:
-        print("Server replied:\n\n", response.decode())
+        print("Server replied:\n\n\t", response, "\n")
         return response
 
-mitm = MITM()
+config = Config()
+config.add_middleware(PrintFlow)
+mitm = MITM(config)
 mitm.start()
+
 ```
 
 Running the above, and then in a different script running:
@@ -68,53 +70,21 @@ requests.get("https://httpbin.org/anything", proxies=proxies, verify=False)
 Will yield the following print-out:
 
 ```
-2021-11-05 16:32:57 INFO     Booting up server on 127.0.0.1:8888.
-2021-11-05 16:33:00 INFO     Client 127.0.0.1:57373 has connected.
+2021-11-09 12:36:10 INFO     Booting up server on 127.0.0.1:8888.
+2021-11-09 12:36:16 INFO     Client 127.0.0.1:54275 has connected.
 Client sent:
 
-CONNECT httpbin.org:443 HTTP/1.0
-
+	 b'CONNECT httpbin.org:443 HTTP/1.0\r\n\r\n'
 
 Client sent:
 
-GET /anything HTTP/1.1
-Host: httpbin.org
-User-Agent: python-requests/2.26.0
-Accept-Encoding: gzip, deflate
-Accept: */*
-Connection: keep-alive
-
+	 b'GET /anything HTTP/1.1\r\nHost: httpbin.org\r\nUser-Agent: python-requests/2.26.0\r\nAccept-Encoding: gzip, deflate\r\nAccept: */*\r\nConnection: keep-alive\r\n\r\n'
 
 Server replied:
 
-HTTP/1.1 200 OK
-Date: Fri, 05 Nov 2021 20:33:01 GMT
-Content-Type: application/json
-Content-Length: 396
-Connection: keep-alive
-Server: gunicorn/19.9.0
-Access-Control-Allow-Origin: *
-Access-Control-Allow-Credentials: true
+	 b'HTTP/1.1 200 OK\r\nDate: Tue, 09 Nov 2021 17:36:17 GMT\r\nContent-Type: application/json\r\nContent-Length: 394\r\nConnection: keep-alive\r\nServer: gunicorn/19.9.0\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Credentials: true\r\n\r\n{\n  "args": {}, \n  "data": "", \n  "files": {}, \n  "form": {}, \n  "headers": {\n    "Accept": "*/*", \n    "Accept-Encoding": "gzip, deflate", \n    "Host": "httpbin.org", \n    "User-Agent": "python-requests/2.26.0", \n    "X-Amzn-Trace-Id": "Root=1-618ab191-4187d50815febd015b589e63"\n  }, \n  "json": null, \n  "method": "GET", \n  "origin": "69.65.87.201", \n  "url": "https://httpbin.org/anything"\n}\n'
 
-{
-  "args": {}, 
-  "data": "", 
-  "files": {}, 
-  "form": {}, 
-  "headers": {
-    "Accept": "*/*", 
-    "Accept-Encoding": "gzip, deflate", 
-    "Host": "httpbin.org", 
-    "User-Agent": "python-requests/2.26.0", 
-    "X-Amzn-Trace-Id": "Root=1-618594fd-2027236d11ccb6a7334a5800"
-  }, 
-  "json": null, 
-  "method": "GET", 
-  "origin": "174.64.123.133", 
-  "url": "https://httpbin.org/anything"
-}
-
-2021-11-05 16:33:01 INFO     Successfully closed connection with 127.0.0.1:57373.
+2021-11-09 12:36:17 INFO     Successfully closed connection with 127.0.0.1:54275
 ```
 
 You can modify the request and response data in the middleware before returning. You can read more of this in the documentation.
