@@ -14,7 +14,7 @@ Note that OpenSSL 1.1.1 or greater is required.
 
 ## Documentation
 
-Documentation can be found [here](https://night-project.github.io/mitm/). 
+Documentation can be found [here](https://synchronizing.github.io/mitm/). 
 
 ## Using
 
