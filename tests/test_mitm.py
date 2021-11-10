@@ -11,7 +11,7 @@ async def server():
 
     p = multiprocessing.Process(target=MITM.start)
     p.start()
-    time.sleep(1)  # Give enough time for the server to start.
+    time.sleep(5)  # Give enough time for the server to start.
     yield
     p.terminate()
 
