@@ -1,10 +1,9 @@
 import multiprocessing
 import time
-import toolbox
 
 import pytest
 import requests
-from mitm import MITM, Config
+from mitm import MITM
 
 
 @pytest.fixture(autouse=True)
