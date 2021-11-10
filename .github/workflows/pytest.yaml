@@ -31,4 +31,4 @@ jobs:
         pip install -r tests/requirements.txt
     - name: Run PyTest
       run: |
-        pytest --cov=mitm tests/
+        pytest tests/
