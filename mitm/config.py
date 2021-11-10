@@ -24,13 +24,13 @@ class Config:
         loop: asyncio.BaseEventLoop = asyncio.get_event_loop(),
         host: str = "127.0.0.1",
         port: int = 8888,
-        buffer_size: int = 2048,
+        buffer_size: int = 8192,
         rsa_key: pathlib.Path = data_directory / "mitm.key",
         rsa_cert: pathlib.Path = data_directory / "mitm.crt",
         rsa_generate: bool = True,
         middlewares: List[Middleware] = [],
         log_level: int = logging.INFO,
-    ) :
+    ):
         """
         Configuration settings for the man-in-the-middle server.
 
