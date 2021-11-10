@@ -2,10 +2,6 @@
 
 <p align="center">
 
-  <a href="https://github.com/synchronizing/mitm/actions/workflows/pytest.yaml">
-    <img src="https://github.com/synchronizing/mitm/actions/workflows/pytest.yaml/badge.svg">
-  </a>
-
 <a href="https://synchronizing.github.io/mitm/">
     <img src="https://github.com/synchronizing/mitm/actions/workflows/docs-publish.yaml/badge.svg">
   </a>
