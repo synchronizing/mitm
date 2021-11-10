@@ -26,8 +26,7 @@ By itself `mitm` is not very special. You can boot it up and view debug messages
     import logging
 
     config = Config(log_level=logging.DEBUG)
-    mitm = MITM(config)
-    mitm.start()
+    MITM.start(config)
 
 ``mitm`` becomes more useful when you either use the middleware system, or inherit and extend :py:class:`mitm.mitm.MITM`. Check out the `customizing guide </writeups/customizing.html>`_ for more information.
 

@@ -6,7 +6,7 @@ import asyncio
 import logging
 import ssl
 from enum import Enum
-from typing import Tuple
+from typing import Optional, Tuple
 
 import httpq
 
@@ -43,36 +43,45 @@ class MITM:
             config: The configuration object.
         """
 
+        # User configuration.
         self.config = config
+
+        # Client reader, writer, IP, and port.
         self.client: Tuple[asyncio.StreamReader, asyncio.StreamWriter] = (None, None)
         self.client_info: Tuple[str, int] = (None, None)
+
+        # Server reader, writer, IP, and port.
         self.server: Tuple[asyncio.StreamReader, asyncio.StreamWriter] = (None, None)
         self.server_info: Tuple[str, int] = (None, None)
-        self.ssl: bool = False  # Whether or not the client is using TLS/SSL.
-        self.request: bytes = b""  # First non-CONNECT request sent from client.
+
+        # Whether or not the client is using TLS/SSL.
+        self.ssl: bool = False
+
+        # First non-CONNECT request sent from client.
+        self.request: Optional[httpq.Request] = None
 
         self.middlewares = []
         for Middleware in config.middlewares:
             self.middlewares.append(Middleware(self))
 
-    def start(self):
+    @staticmethod
+    def start(config: Config = Config()):
         """
         Starts the MITM server.
         """
 
-        async def start(host: str, port: int):
+        async def start():
             server = await asyncio.start_server(
-                lambda r, w: self.client_connect(r, w),
-                host=host,
-                port=port,
+                lambda r, w: MITM(config=config).client_connect(r, w),
+                host=config.host,
+                port=config.port,
             )
 
             async with server:
                 await server.serve_forever()
 
-        host, port = self.config.host, self.config.port
-        logger.info("Booting up server on %s:%i." % (host, port))
-        asyncio.run(start(host, port))
+        logger.info("Booting up server on %s:%i." % (config.host, config.port))
+        asyncio.run(start())
 
     async def client_connect(
         self,

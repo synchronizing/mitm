@@ -25,15 +25,14 @@ from mitm import MITM, Config
 import logging
 
 config = Config(log_level=logging.DEBUG)
-mitm = MITM(config)
-mitm.start()
+MITM.start(config)
 ```
 
 `mitm` becomes more useful when you either inherit and extend `mitm.MITM`, or utilize the built-in middleware system.
 
 ### Inheriting
 
-For more complex modifications to `mitm` you can inherit from `mitm.MITM` to modify the default behavior of how the proxy works. Things like modifying the default TLS configuration, modifying connection behavior, or even changing client behavior can be done. 
+For more complex modifications to `mitm` you can inherit from `mitm.MITM` to modify the default behavior of how the proxy works. Things like modifying the default TLS configuration, modifying connection behavior, or even changing client behavior can be done.
 
 ### Middleware
 
@@ -53,9 +52,7 @@ class PrintFlow(Middleware):
 
 config = Config()
 config.add_middleware(PrintFlow)
-mitm = MITM(config)
-mitm.start()
-
+MITM.start(config)
 ```
 
 Running the above, and then in a different script running:

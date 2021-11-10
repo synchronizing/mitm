@@ -59,9 +59,7 @@ To use our newly created middleware we would add it to the ``mitm`` via :py:clas
 
     config = Config()
     config.add_middleware(MyMiddleware)
-
-    mitm = MITM(config)
-    mitm.start()
+    MITM.start(config)
 
 With our middleware in place we can send data through the ``mitm`` to see what happens.
 
@@ -169,7 +167,6 @@ Simply enough, the function opens a ``reader`` and ``writer`` to the destination
             self.server_info = ('my.proxy.com', 80)
             super().server_connect()
 
-    mitm = MyMITM()
-    mitm.start()
+    MyMITM.start()
 
 and just like that, we have modified the destination server.

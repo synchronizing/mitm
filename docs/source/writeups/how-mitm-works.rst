@@ -14,7 +14,6 @@ For the sake of example, imagine a client is trying to reach `example.com`:
     import requests
     requests.get("http://example.com")
 
-
 Whether the client is trying to reach the domain via the `requests` module or their browser, both methods must generate a valid HTTP request to send to the server. In the case of the above, `requests` would generate the following HTTP request:
 
 .. code-block::
@@ -25,7 +24,6 @@ Whether the client is trying to reach the domain via the `requests` module or th
     Accept-Encoding: gzip, deflate
     Accept: */*
     Connection: keep-alive
-
 
 This HTTP request is sent through hundreds of miles of wires until it reaches the server, which interprets the message, and replies back with the requested page:
 
@@ -47,7 +45,6 @@ This HTTP request is sent through hundreds of miles of wires until it reaches th
     Content-Length: 648
     [data]
 
-
 The server, like the client, strictly follows the RFCs that define the `HTTP <https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol>`_ protocol. In some cases, however, the client might want to create a more secure connection with the server. We know of this as HTTPS, which stands for HTTP secure. To do this, a client would connect to the server with the `https` prefix:
 
 .. code-block:: python
@@ -55,20 +52,17 @@ The server, like the client, strictly follows the RFCs that define the `HTTP <ht
     import requests
     requests.get("https://example.com")
 
-
 In this case, the clients initial request will be
 
 .. code-block::
     
     CONNECT example.com:443 HTTP/1.0
 
-
 Which indicates that the client is ready to begin a secure connection with the server. When the server receives this message it replies back to the client
 
 .. code-block::
 
     HTTP/1.1 200 OK
-
 
 And the client begins what is called the "TLS/SSL handshake," which you can read more about it `here <https://www.cloudflare.com/learning/ssl/what-happens-in-a-tls-handshake/>`_. During this handshake the server and the client create a secure tunnel that they can communicate without fear of someone being able to see their communication.
 
@@ -85,7 +79,6 @@ A proxy works by sitting between the client and destination server and is typica
 
     proxies = {"http": "http://127.0.0.1:8888", "https": "http://127.0.0.1:8888"}
     requests.get("http://example.com", proxies=proxies)
-
 
 In this case `requests` will generate the same HTTP request we saw above, but instead of sending it to the destination server - `example.com` - it will send it to the proxy. 
 
@@ -120,7 +113,6 @@ When this happens, and the client sends a
     
     CONNECT example.com:443 HTTP/1.0
 
-
 What `mitm` does is *acts* like the destination server by responding back to the client
 
 .. code-block::
@@ -135,6 +127,5 @@ and then performs the TLS/SSL handshake on behalf of the destination server. Onc
 
     proxies = {"http": "http://127.0.0.1:8888", "https": "http://127.0.0.1:8888"}
     requests.get("https://example.com", proxies=proxies, verify=False)
-
 
 ... and that's really it!
