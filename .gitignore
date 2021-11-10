@@ -4,6 +4,7 @@
 .python-version
 .vscode
 openssl
+.venv
 
 # Python
 __pycache__
