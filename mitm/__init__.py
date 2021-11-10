@@ -1,5 +1,5 @@
 __project__ = "mitm"
-__author__ = "shades"
+__author__ = "Felipe Faria"
 
 import logging
 import sys
