@@ -8,7 +8,7 @@ import ssl
 from enum import Enum
 from typing import Tuple
 
-import h11
+import httpq
 
 from .config import Config
 
@@ -18,7 +18,7 @@ asyncio.log.logger.setLevel(logging.ERROR)
 
 class Flow(Enum):
     """Enumeration of the possible flows.
-    
+
     Two flows are possible: ``CLIENT_TO_SERVER`` and ``SERVER_TO_CLIENT``.
     """
 
@@ -60,7 +60,7 @@ class MITM:
         Starts the MITM server.
         """
 
-        async def start(host: str, port: int) :
+        async def start(host: str, port: int):
             server = await asyncio.start_server(
                 lambda r, w: self.client_connect(r, w),
                 host=host,
@@ -78,7 +78,7 @@ class MITM:
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-    ) :
+    ):
         """
         Called when a client connects to the MITM server.
 
@@ -98,69 +98,40 @@ class MITM:
 
         await self.client_request()
 
-    async def client_request(self) :
+    async def client_request(self):
         """
         Process the client's initial request after the client has connected.
-
-        Note:
-            This method currently used ``h11`` to parse the request, but in the future
-            ``httpsuite`` will be used.
         """
 
         reader, _ = self.client
 
-        # Read request from client in its entirety.
-        conn = h11.Connection(h11.SERVER)
-        while True:
+        # Read request from client until body.
+        req = httpq.Request()
+        while req.step_state() != httpq.state.BODY:
+            data = await reader.read(self.config.buffer_size)
+            req.feed(data)
+        self.request = req
 
-            # Loops until the entire request is read.
-            event = conn.next_event()
-            if event is h11.NEED_DATA:
-                data = await reader.read(self.config.buffer_size)
-                conn.receive_data(data)
-                self.request += data
-                continue
-            else:
-                break
+        # If the request is a CONNECT request we upgrade the connection to TLS/SSL.
+        if req.method == "CONNECT":
+            await self.client_tls_handshake()
+            self.ssl = True
 
-        # Runs request through middleware.
-        for middleware in self.middlewares:
-            req = await middleware.client_data(self.request)
-            if req != self.request:
-                self.request = req
+            # Resets the stored request to not relay 'CONNECT' to the server.
+            self.request = b""
 
-        # Process the request.
-        if isinstance(event, h11.Request):
+            # Figure out the destination server.
+            host, port = req.target.string.split(":")
+            self.server_info = (host, int(port))
 
-            # If the request is a CONNECT request, then we need to upgrade the
-            # connection to TLS/SSL.
-            if event.method == b"CONNECT":
-                await self.client_tls_handshake()
-                self.ssl = True
-
-                # Resets the stored request as we don't want to relay the CONNECT
-                # request to the server.
-                self.request = b""
-
-                # Figure out the destination server.
-                host, port = event.target.split(b":")
-                self.server_info = (host.decode(), int(port.decode()))
-
-            # If the request is not a CONNECT request, then we must grab the
-            # destination server from the request's headers.
-            elif not self.ssl:
-                host = next(filter(lambda x: x[0] == b"host", event.headers))[1]
-                self.server_info = (host.decode(), 80)
-
-            # Open connection with the destination server.
-            await self.server_connect()
-
-        elif isinstance(event, h11.PAUSED):
-            await self.client_disconnect()
+        # If request is not a CONNECT, we use the 'Host' headers for destination server.
         else:
-            await self.client_disconnect()
+            self.server_info = (req.headers.get("Host").string, 80)
 
-    async def client_tls_handshake(self) :
+        # Open connection with the destination server.
+        await self.server_connect()
+
+    async def client_tls_handshake(self):
         """
         Upgrades the client connection to TLS/SSL.
         """
@@ -192,7 +163,7 @@ class MITM:
 
         logger.debug("Successfully upgraded server connection to TLS/SSL.")
 
-    async def client_disconnect(self) :
+    async def client_disconnect(self):
         """
         Called when the client disconnects.
         """
@@ -206,7 +177,7 @@ class MITM:
         for middleware in self.middlewares:
             await middleware.client_disconnected()
 
-    async def server_connect(self) :
+    async def server_connect(self):
         """
         Connects to destination server.
         """
@@ -226,7 +197,7 @@ class MITM:
         # Relay info back an forth between the client/server.
         await self.relay()
 
-    async def relay(self) :
+    async def relay(self):
         """
         Relays data between the client and destination server.
         """
@@ -234,11 +205,12 @@ class MITM:
         c_reader, c_writer = self.client
         s_reader, s_writer = self.server
 
-        # Relays initial request to the server if it's not SSL.
+        # Relays initial request to the server if it's not SSL. The reason why we don't
+        # relay a CONNECT is because 'server_connect' does that for us.
         if not self.ssl:
-            s_writer.write(self.request)
+            s_writer.write(self.request.raw)
             await s_writer.drain()
-            logger.debug("Relayed messaged: \n\n\t%s\n\n" % self.request)
+            logger.debug("Relayed messaged: \n\n\t%s\n\n" % self.request.raw)
 
         # Relay the requests between the client/server - observing them in between.
         event = asyncio.Event()
@@ -255,7 +227,7 @@ class MITM:
         writer: asyncio.StreamWriter,
         event: asyncio.Event,
         flow: Flow,
-    ) :
+    ):
         """
         Forwards data between a reader/writer.
 
