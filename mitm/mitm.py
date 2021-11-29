@@ -5,274 +5,161 @@ Man-in-the-middle.
 import asyncio
 import logging
 import ssl
-from enum import Enum
-from typing import Optional, Tuple
+from typing import List, Callable
 
-import httpq
+import toolbox
 
-from .config import Config
+from . import __data__, crypto, middleware, protocol
+from .core import Connection, Flow, Host
 
-logger = logging.getLogger(__name__)
-asyncio.log.logger.setLevel(logging.ERROR)
+logger = logging.getLogger(__package__)
+logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
-
-class Flow(Enum):
-    """Enumeration of the possible flows.
-
-    Two flows are possible: ``CLIENT_TO_SERVER`` and ``SERVER_TO_CLIENT``.
-    """
-
-    CLIENT_TO_SERVER = 0
-    SERVER_TO_CLIENT = 1
-
-
-class MITM:
+class MITM(toolbox.ClassTask):
     """
     Man-in-the-middle server.
-
-    Note:
-        In the context of this class ``client`` is the client connected to mitm, and
-        ``server`` is the destination server the client is trying to connect to.
     """
 
-    def __init__(self, config: Config = Config()):
+    def __init__(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 8888,
+        protocols: List[protocol.Protocol] = [protocol.HTTP],
+        middlewares: List[middleware.Middleware] = [middleware.Log],
+        buffer_size: int = 8192,
+        timeout: int = 5,
+        ssl_context: ssl.SSLContext = crypto.mitm_ssl_context(),
+        start: bool = False,
+    ):
         """
         Initializes the MITM class.
-
-        Args:
-            config: The configuration object.
         """
+        self.host = host
+        self.port = port
+        self.middlewares = middlewares
+        self.protocols = protocols
+        self.buffer_size = buffer_size
+        self.timeout = timeout
+        self.ssl_context = ssl_context
 
-        # User configuration.
-        self.config = config
+        super().__init__(
+            func=lambda: self._run(callback=lambda: self._loop.stop()),
+            run_forever=True,
+            start=start,
+        )
 
-        # Client reader, writer, IP, and port.
-        self.client: Tuple[asyncio.StreamReader, asyncio.StreamWriter] = (None, None)
-        self.client_info: Tuple[str, int] = (None, None)
-
-        # Server reader, writer, IP, and port.
-        self.server: Tuple[asyncio.StreamReader, asyncio.StreamWriter] = (None, None)
-        self.server_info: Tuple[str, int] = (None, None)
-
-        # Whether or not the client is using TLS/SSL.
-        self.ssl: bool = False
-
-        # First non-CONNECT request sent from client.
-        self.request: Optional[httpq.Request] = None
-
-        self.middlewares = []
-        for Middleware in config.middlewares:
-            self.middlewares.append(Middleware(self))
-
-    @staticmethod
-    def start(config: Config = Config()):
+    async def _run(self, callback: Callable):
         """
-        Starts the MITM server.
+        Runs the MITM server.
         """
-
-        async def start():
+        try:
             server = await asyncio.start_server(
-                lambda r, w: MITM(config=config).client_connect(r, w),
-                host=config.host,
-                port=config.port,
+                lambda reader, writer: self.mitm(
+                    Connection(
+                        client=Host(reader=reader, writer=writer),
+                        server=Host(),
+                        ssl_context=self.ssl_context,
+                    )
+                ),
+                host=self.host,
+                port=self.port,
+            )
+        except OSError as e:
+            callback()
+            raise e
+
+        for mw in self.middlewares:
+            await mw.mitm_started(host=self.host, port=self.port)
+
+        async with server:
+            await server.serve_forever()
+
+    async def mitm(self, connection: Connection):
+        """
+        Handles a single connection.
+        """
+
+        async def _relay(connection: Connection, event: asyncio.Event, flow: Flow):
+            """
+            Forwards data between two connections.
+            """
+
+            if flow == Flow.CLIENT_TO_SERVER:
+                reader = connection.client.reader
+                writer = connection.server.writer
+            elif flow == Flow.SERVER_TO_CLIENT:
+                reader = connection.server.reader
+                writer = connection.client.writer
+
+            while not event.is_set() and not reader.at_eof():
+                try:
+                    data = await asyncio.wait_for(
+                        reader.read(self.buffer_size),
+                        self.timeout,
+                    )
+                except asyncio.exceptions.TimeoutError:
+                    continue
+
+                if data == b"":
+                    event.set()
+                    break
+                else:
+
+                    # Pass data through middlewares.
+                    for mw in self.middlewares:
+                        if flow == Flow.SERVER_TO_CLIENT:
+                            data = await mw.server_data(connection, data)
+                        elif flow == Flow.CLIENT_TO_SERVER:
+                            data = await mw.client_data(connection, data)
+
+                    writer.write(data)
+                    await writer.drain()
+
+        # Runs initial middlewares.
+        for mw in self.middlewares:
+            await mw.client_connected(connection=connection)
+
+        # Gets the bytes needed to identify the protocol.
+        min_bytes_needed = max(proto.bytes_needed for proto in self.protocols)
+        data = await connection.client.reader.read(n=min_bytes_needed)
+
+        # Calls middleware on initial data.
+        for mw in self.middlewares:
+            await mw.client_data(connection=connection, data=data)
+
+        # Finds the protocol that matches the data.
+        for proto in self.protocols:
+            try:
+                connected = await proto.connect(connection=connection, data=data)
+                if connected:
+                    break
+            except protocol.InvalidProtocol:
+                connected = False
+
+        # Server connected successfully.
+        if connected:
+
+            # Calls middlewares for server connected.
+            for mw in self.middlewares:
+                await mw.server_connected(connection=connection)
+
+            # Relays data between client/server.
+            event = asyncio.Event()
+            await asyncio.gather(
+                _relay(connection, event, Flow.SERVER_TO_CLIENT),
+                _relay(connection, event, Flow.CLIENT_TO_SERVER),
             )
 
-            async with server:
-                await server.serve_forever()
+        # Close connections.
+        if not connection.client.writer.is_closing():
+            connection.client.writer.close()
+            await connection.client.writer.wait_closed()
 
-        logger.info("Booting up server on %s:%i." % (config.host, config.port))
-        asyncio.run(start())
+        if connection.server and connection.server.writer.is_closing():
+            connection.server.writer.close()
+            await connection.server.writer.wait_closed()
 
-    async def client_connect(
-        self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-    ):
-        """
-        Called when a client connects to the MITM server.
-
-        Args:
-            reader: The reader of the client connection.
-            writer: The writer of the client connection.
-        """
-
-        self.client = (reader, writer)
-        ip, port = writer._transport.get_extra_info("peername")
-        self.client_info = (ip, port)
-        logger.info("Client %s:%i has connected." % self.client_info)
-
-        # Passes the client connection to middlewares.
-        for middleware in self.middlewares:
-            await middleware.client_connected(*self.client)
-
-        await self.client_request()
-
-    async def client_request(self):
-        """
-        Process the client's initial request after the client has connected.
-        """
-
-        reader, _ = self.client
-
-        # Read request from client until body.
-        req = httpq.Request()
-        while req.step_state() != httpq.state.BODY:
-            data = await reader.read(self.config.buffer_size)
-            req.feed(data)
-        self.request = req
-
-        # If the request is a CONNECT request we upgrade the connection to TLS/SSL.
-        if req.method == "CONNECT":
-            await self.client_tls_handshake()
-            self.ssl = True
-
-            # Resets the stored request to not relay 'CONNECT' to the server.
-            self.request = b""
-
-            # Figure out the destination server.
-            host, port = req.target.string.split(":")
-            self.server_info = (host, int(port))
-
-        # If request is not a CONNECT, we use the 'Host' headers for destination server.
-        else:
-            self.server_info = (req.headers.get("Host").string, 80)
-
-        # Open connection with the destination server.
-        await self.server_connect()
-
-    async def client_tls_handshake(self):
-        """
-        Upgrades the client connection to TLS/SSL.
-        """
-
-        reader, writer = self.client
-
-        # Tell client to start TLS.
-        writer.write(b"HTTP/1.1 200 OK\r\n\r\n")
-        await writer.drain()
-
-        # Upgrade connection to TLS.
-        transport = writer.transport
-        protocol = transport.get_protocol()
-
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-        ssl_context.load_cert_chain(self.config.rsa_cert, self.config.rsa_key)
-
-        new_transport = await asyncio.get_event_loop().start_tls(
-            transport,
-            protocol,
-            ssl_context,
-            server_side=True,
-        )
-
-        # Replace stream with new transport.
-        reader._transport = new_transport
-        writer._transport = new_transport
-        self.client = (reader, writer)
-
-        logger.debug("Successfully upgraded server connection to TLS/SSL.")
-
-    async def client_disconnect(self):
-        """
-        Called when the client disconnects.
-        """
-
-        logger.info("Closing connection with client %s:%i." % self.client_info)
-        _, writer = self.client
-        writer.close()
-        await writer.wait_closed()
-
-        # Calls the client disconnected method in middlewares.
-        for middleware in self.middlewares:
-            await middleware.client_disconnected()
-
-    async def server_connect(self):
-        """
-        Connects to destination server.
-        """
-
-        host, port = self.server_info
-        reader, writer = await asyncio.open_connection(
-            host=host,
-            port=port,
-            ssl=self.ssl,
-        )
-        self.server = (reader, writer)
-
-        # Passes the server connection to middlewares.
-        for middleware in self.middlewares:
-            await middleware.server_connected(*self.server)
-
-        # Relay info back an forth between the client/server.
-        await self.relay()
-
-    async def relay(self):
-        """
-        Relays data between the client and destination server.
-        """
-
-        c_reader, c_writer = self.client
-        s_reader, s_writer = self.server
-
-        # Relays initial request to the server if it's not SSL. The reason why we don't
-        # relay a CONNECT is because 'server_connect' does that for us.
-        if not self.ssl:
-            s_writer.write(self.request.raw)
-            await s_writer.drain()
-            logger.debug("Relayed messaged: \n\n\t%s\n\n" % self.request.raw)
-
-        # Relay the requests between the client/server - observing them in between.
-        event = asyncio.Event()
-        await asyncio.gather(
-            self.forward(c_reader, s_writer, event, Flow.CLIENT_TO_SERVER),
-            self.forward(s_reader, c_writer, event, Flow.SERVER_TO_CLIENT),
-        )
-
-        logger.info("Successfully closed connection with %s:%i." % self.client_info)
-
-    async def forward(
-        self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-        event: asyncio.Event,
-        flow: Flow,
-    ):
-        """
-        Forwards data between a reader/writer.
-
-        Args:
-            reader: The reader of the source.
-            writer: The writer of the destination.
-            event: The event to wait on.
-            flow: The flow of the data.
-        """
-
-        while not event.is_set():
-            data = await reader.read(self.config.buffer_size)
-            if data == b"":
-                break
-            else:
-
-                # Runs data through middleware.
-                if flow == Flow.SERVER_TO_CLIENT:
-                    for middleware in self.middlewares:
-                        data = await middleware.server_data(data)
-                elif flow == Flow.CLIENT_TO_SERVER:
-                    for middleware in self.middlewares:
-                        data = await middleware.client_data(data)
-
-                writer.write(data)
-                await writer.drain()
-
-                logger.debug("Relayed messaged: \n\n\t%s\n\n" % data)
-
-        writer.close()
-        await writer.wait_closed()
-
-        # Calls the disconnected methods in middlewares.
-        if flow == Flow.SERVER_TO_CLIENT:
-            for middleware in self.middlewares:
-                await middleware.server_disconnected()
-        elif flow == Flow.CLIENT_TO_SERVER:
-            for middleware in self.middlewares:
-                await middleware.client_disconnected()
+        for mw in self.middlewares:
+            await mw.client_disconnected(connection=connection)
+            if connection.server:
+                await mw.server_disconnected(connection=connection)

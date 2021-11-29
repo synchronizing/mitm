@@ -1,5 +1,9 @@
-__project__ = "mitm"
 __author__ = "Felipe Faria"
+
+import appdirs
+import pathlib
+
+__data__ = pathlib.Path(appdirs.user_data_dir(__package__, __author__))
 
 import logging
 import sys
@@ -11,6 +15,8 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-from .mitm import MITM
-from .middleware import Middleware
-from .config import Config
+
+from .core import *
+from .protocol import *
+from .middleware import *
+from .mitm import *

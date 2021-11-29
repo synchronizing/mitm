@@ -2,11 +2,15 @@
 Cryptography functionalities for mitm.
 """
 
+import pathlib
 import random
 import socket
-from typing import Tuple
+import ssl
+from typing import Optional, Tuple
 
 from OpenSSL import crypto
+
+from . import __data__
 
 
 def new_RSA(bits: int = 1024) -> crypto.PKey:
@@ -71,10 +75,17 @@ def new_X509(
     return cert
 
 
-def new_pair() -> Tuple[bytes, bytes]:
+def new_pair(
+    key_path: Optional[pathlib.Path] = None,
+    cert_path: Optional[pathlib.Path] = None,
+) -> Tuple[bytes, bytes]:
     """
     Generates an RSA and self-signed X509 certificate for use with TLS/SSL using the
     default mitm settings.
+
+    Args:
+        key_path: Optional path to save key.
+        cert_path: Optional path to save cert.
 
     Returns:
         tuple: Key and certificate bytes ready to be saved.
@@ -91,4 +102,25 @@ def new_pair() -> Tuple[bytes, bytes]:
     key = crypto.dump_privatekey(crypto.FILETYPE_PEM, rsa)
     crt = crypto.dump_certificate(crypto.FILETYPE_PEM, cert)
 
+    # Stores they .crt and .key file if specified.
+    if key_path:
+        key_path.parent.mkdir(parents=True, exist_ok=True)
+        with key_path.open("wb") as file:
+            file.write(key)
+    if cert_path:
+        cert_path.parent.mkdir(parents=True, exist_ok=True)
+        with cert_path.open("wb") as file:
+            file.write(crt)
+
     return key, crt
+
+
+def mitm_ssl_context() -> ssl.SSLContext:
+    """
+    Generates a SSL context for MITM.
+    """
+    rsa_key, rsa_cert = __data__ / "mitm.key", __data__ / "mitm.crt"
+    new_pair(key_path=rsa_key, cert_path=rsa_cert)
+    context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+    context.load_cert_chain(certfile=rsa_cert, keyfile=rsa_key)
+    return context

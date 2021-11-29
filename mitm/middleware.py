@@ -1,53 +1,34 @@
-"""
-Middleware base class for mitm.
-"""
-
 import asyncio
-from typing import Tuple
 
-from . import mitm
+from abc import ABC, abstractstaticmethod
+
+from .core import Connection
 
 
-class Middleware:
-    def __init__(self, connection: "mitm.MITM"):
+class Middleware(ABC):
+    @abstractstaticmethod
+    async def mitm_started(host: str, port: int):
         """
-        Initialize the middleware.
+        Called when the mitm has started.
         """
+        raise NotImplementedError
 
-        self.connection = connection
-
-        self.client: Tuple[asyncio.StreamReader, asyncio.StreamWriter] = (None, None)
-        self.server: Tuple[asyncio.StreamReader, asyncio.StreamWriter] = (None, None)
-
-    async def client_connected(
-        self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-    ) :
+    @abstractstaticmethod
+    async def client_connected(connection: Connection):
         """
         Called when the connection is established with the client.
-
-        Args:
-            reader: The reader for the client.
-            writer: The writer for the client.
         """
-        self.client = (reader, writer)
+        raise NotImplementedError
 
-    async def server_connected(
-        self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-    ) :
+    @abstractstaticmethod
+    async def server_connected(connection: Connection):
         """
         Called when the connection is established with the server.
-
-        Args:
-            reader: The reader for the server.
-            writer: The writer for the server.
         """
-        self.server = (reader, writer)
+        raise NotImplementedError
 
-    async def client_data(self, request: bytes) -> bytes:
+    @abstractstaticmethod
+    async def client_data(connection: Connection, data: bytes) -> bytes:
         """
         Called when data is received from the client.
 
@@ -64,9 +45,10 @@ class Middleware:
         Returns:
             The request to send to the server.
         """
-        return request
+        raise NotImplementedError
 
-    async def server_data(self, response: bytes) -> bytes:
+    @abstractstaticmethod
+    async def server_data(connection: Connection, data: bytes) -> bytes:
         """
         Called when data is received from the server.
 
@@ -76,18 +58,17 @@ class Middleware:
         Returns:
             The response to send back to the client.
         """
-        return response
+        raise NotImplementedError
 
-    async def client_disconnected(self):
+    @abstractstaticmethod
+    async def client_disconnected(connection: Connection):
         """
         Called when the client disconnects.
-
-        Note:
-            By the time this method is called, the client will have already successfully
-            disconnected.
         """
+        raise NotImplementedError
 
-    async def server_disconnected(self):
+    @abstractstaticmethod
+    async def server_disconnected(connection: Connection):
         """
         Called when the server disconnects.
 
@@ -95,3 +76,44 @@ class Middleware:
             By the time this method is called, the server will have already successfully
             disconnected.
         """
+        raise NotImplementedError
+
+
+import asyncio
+import logging
+
+logger = logging.getLogger(__package__)
+
+
+class Log(Middleware):
+    @staticmethod
+    async def mitm_started(host: str, port: int):
+        logger.info("MITM started on %s:%d." % (host, port))
+
+    @staticmethod
+    async def client_connected(connection: Connection):
+        host, port = connection.client.writer._transport.get_extra_info("peername")
+        logger.info("Client %s:%i has connected." % (host, port))
+
+    @staticmethod
+    async def server_connected(connection: Connection):
+        host, port = connection.server.writer._transport.get_extra_info("peername")
+        logger.info("Connected to server %s:%i." % (host, port))
+
+    @staticmethod
+    async def client_data(connection: Connection, data: bytes) -> bytes:
+        logger.info("Client to server: \n\n\t%s\n" % data)
+        return data
+
+    @staticmethod
+    async def server_data(connection: Connection, data: bytes) -> bytes:
+        logger.info("Server to client: \n\n\t%s\n" % data)
+        return data
+
+    @staticmethod
+    async def client_disconnected(connection: Connection):
+        logger.info("Client has disconnected.")
+
+    @staticmethod
+    async def server_disconnected(connection: Connection):
+        logger.info("Server has disconnected.")

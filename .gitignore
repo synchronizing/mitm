@@ -17,3 +17,4 @@ docs/build/
 # PyTest + Coverage
 .pytest_cache
 .coverage
+test.py
