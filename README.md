@@ -27,7 +27,7 @@ Documentation can be found [**here**](https://synchronizing.github.io/mitm/).
 
 ## Using
 
-You can easily boot-up the proxy and start intercepting traffic (explicitly using default values):
+You can easily boot-up the proxy and start intercepting traffic:
 
 ```python
 from mitm import MITM, protocol, middleware, crypto
@@ -45,11 +45,13 @@ mitm = MITM(
 mitm.start()
 ```
 
+Above is the default values for the `MITM` class. 
+
 While the example above is sufficient for printing out incoming/outgoing messages, the bread and butter of `mitm` is the ability to add custom protocols and middlewares.
 
 #### Protocols
 
-`mitm` allows the addition of custom application-layer protocols that can be used to intercept and direct traffic. Built-into the `mitm` library is the HTTP protocol (with TLS/`CONNECT` support). To read and understand more about protocols check out the documentations.
+`mitm` allows the addition of custom application-layer protocols that can be used to intercept and redirect traffic. Built-into the `mitm` library is the HTTP protocol (with TLS/`CONNECT` support). To read and understand more about protocols check out the documentations.
 
 #### Middlewares
 
@@ -57,7 +59,7 @@ Custom middlewares allow programmatic customizations to incoming and outgoing re
 
 ### Example
 
-Using the example above we can send a request to the server in another script:
+Using the example above we can send a request to the server via another script:
 
 ```python
 import requests

@@ -1,5 +1,3 @@
-import asyncio
-
 from abc import ABC, abstractstaticmethod
 
 from .core import Connection
@@ -79,13 +77,15 @@ class Middleware(ABC):
         raise NotImplementedError
 
 
-import asyncio
 import logging
 
 logger = logging.getLogger(__package__)
 
 
 class Log(Middleware):
+    """
+    Logging middleware.
+    """
     @staticmethod
     async def mitm_started(host: str, port: int):
         logger.info("MITM started on %s:%d." % (host, port))

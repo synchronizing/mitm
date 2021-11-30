@@ -2,9 +2,10 @@
 crypto
 ######
 
+
 .. code-block:: python
 
-    from mitm.crypto import *
+    from mitm import crypto
 
 .. automodule:: mitm.crypto
 
@@ -15,3 +16,5 @@ crypto
 .. automethod:: mitm.crypto.new_X509
 
 .. automethod:: mitm.crypto.new_pair
+
+.. automethod:: mitm.crypto.mitm_ssl_default_context

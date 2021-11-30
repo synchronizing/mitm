@@ -15,6 +15,7 @@ from .core import Connection, Flow, Host
 logger = logging.getLogger(__package__)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
+
 class MITM(toolbox.ClassTask):
     """
     Man-in-the-middle server.
@@ -28,11 +29,30 @@ class MITM(toolbox.ClassTask):
         middlewares: List[middleware.Middleware] = [middleware.Log],
         buffer_size: int = 8192,
         timeout: int = 5,
-        ssl_context: ssl.SSLContext = crypto.mitm_ssl_context(),
+        ssl_context: ssl.SSLContext = crypto.mitm_ssl_default_context(),
         start: bool = False,
     ):
         """
         Initializes the MITM class.
+
+        Args:
+            host: Host to listen on. Defaults to `127.0.0.1`.
+            port: Port to listen on. Defaults to `8888`.
+            protocols: List of protocols to use. Defaults to `[protocol.HTTP]`.
+            middlewares: List of middlewares to use. Defaults to `[middleware.Log]`.
+            buffer_size: Buffer size to use. Defaults to `8192`.
+            timeout: Timeout to use. Defaults to `5`.
+            ssl_context: SSL context to use. Defaults to `crypto.mitm_ssl_default_context()`.
+            start: Whether to start the server immediately. Defaults to `False`.
+
+        Example:
+
+            .. code-block:: python
+
+                from mitm import MITM
+
+                mitm = MITM()
+                mitm.start()
         """
         self.host = host
         self.port = port
@@ -77,6 +97,14 @@ class MITM(toolbox.ClassTask):
     async def mitm(self, connection: Connection):
         """
         Handles a single connection.
+
+        This method is called by the asyncio server when a new connection is
+        established. The connection is passed to the middlewares at different points
+        in the process, as well as the protocols when attempting to resolve the
+        destination server.
+
+        Warning:
+            This method is not intended to be called directly.
         """
 
         async def _relay(connection: Connection, event: asyncio.Event, flow: Flow):

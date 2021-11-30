@@ -2,33 +2,42 @@
 Quickstart
 ##########
 
-``mitm`` is a customizable man-in-the-middle proxy with support for HTTP and HTTPS capturing.
+A customizable man-in-the-middle TCP proxy with support for HTTP & HTTPS.
+
+----
 
 Installing
 ----------
 
-I'm currently working on getting PyPi's ``mitm`` page. As of right now, you can install via GitHub:
-
 .. code-block::
     
-    pip install http://github.com/synchronizing/mitm
+    pip install mitm
 
 Note that OpenSSL 1.1.1 or greater is required.
 
 Using
 -----
 
-By itself `mitm` is not very special. You can boot it up and view debug messages quite easily:
+You can easily boot-up the proxy and start intercepting traffic (explicitly using default values):
 
 .. code-block:: python
 
-    from mitm import MITM, Config
-    import logging
+    from mitm import MITM, protocol, middleware, crypto
 
-    config = Config(log_level=logging.DEBUG)
-    MITM.start(config)
+    mitm = MITM(
+        host="127.0.0.1",
+        port=8888,
+        protocols=[protocol.HTTP],
+        middlewares=[middleware.Log],
+        buffer_size=8192,
+        timeout=5,
+        ssl_context=crypto.mitm_ssl_context(),
+        start=False,
+    )
+    mitm.start()
 
-``mitm`` becomes more useful when you either use the middleware system, or inherit and extend :py:class:`mitm.mitm.MITM`. Check out the `customizing guide </writeups/customizing.html>`_ for more information.
+While the example above is sufficient for printing out incoming/outgoing messages, the bread and butter of `mitm` is the ability to add custom protocols and middlewares. Check-out the docs on the left for more details.
+
 
 Questions & Answers
 --------------------

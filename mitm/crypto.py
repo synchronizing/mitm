@@ -16,10 +16,9 @@ from . import __data__
 def new_RSA(bits: int = 1024) -> crypto.PKey:
     """Generates an RSA pair.
 
-    Note:
-        This function is intended to be utilized with :py:func:`new_X509`. See function
-        :py:func:`new_pair` to understand how to generate a valid RSA and X509 pair for
-        SSL/TLS use.
+    This function is intended to be utilized with :py:func:`new_X509`. See function
+    :py:func:`new_pair` to understand how to generate a valid RSA and X509 pair for
+    SSL/TLS use.
 
     Args:
         bits: Size of the RSA key. Defaults to 1024.
@@ -44,10 +43,9 @@ def new_X509(
     """
     Generates a non-signed X509 certificate.
 
-    Note:
-        This function is intended to be utilized with :py:func:`new_RSA`. See function
-        :py:func:`new_pair` to understand how to generate a valid RSA and X509 pair for
-        SSL/TLS use.
+    This function is intended to be utilized with :py:func:`new_RSA`. See function
+    :py:func:`new_pair` to understand how to generate a valid RSA and X509 pair for
+    SSL/TLS use.
 
     Args:
         country_name: Country name code. Defaults to ``US``.
@@ -80,8 +78,10 @@ def new_pair(
     cert_path: Optional[pathlib.Path] = None,
 ) -> Tuple[bytes, bytes]:
     """
-    Generates an RSA and self-signed X509 certificate for use with TLS/SSL using the
-    default mitm settings.
+    Generates an RSA and self-signed X509 certificate for use with TLS/SSL.
+
+    The X509 certificate is self-signed and is not signed by any other certificate
+    authority, containing default values for its fields.
 
     Args:
         key_path: Optional path to save key.
@@ -115,9 +115,9 @@ def new_pair(
     return key, crt
 
 
-def mitm_ssl_context() -> ssl.SSLContext:
+def mitm_ssl_default_context() -> ssl.SSLContext:
     """
-    Generates a SSL context for MITM.
+    Generates the default SSL context for `mitm`.
     """
     rsa_key, rsa_cert = __data__ / "mitm.key", __data__ / "mitm.crt"
     new_pair(key_path=rsa_key, cert_path=rsa_cert)

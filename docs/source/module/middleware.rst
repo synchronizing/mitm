@@ -2,10 +2,9 @@
 middleware
 ##########
 
-
 .. code-block:: python
 
-    from mitm import Middleware
+    from mitm import middleware
 
 .. automodule:: mitm.middleware
 
@@ -13,3 +12,6 @@ middleware
 
 .. autoclass:: mitm.middleware.Middleware
     :members:
+
+.. autoclass:: mitm.middleware.Log(Middleware)
+    

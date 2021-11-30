@@ -12,9 +12,6 @@ import sys
 # Adds system path two folders back (where project lives.)
 sys.path.insert(0, os.path.abspath("../.."))
 
-# Adds extension path.
-sys.path.append(os.path.abspath("./_extension"))
-
 # PyLint might complain, but the interpreter should be able to find this on run.
 from mitm import *
 

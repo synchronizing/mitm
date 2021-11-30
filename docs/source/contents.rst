@@ -3,17 +3,24 @@ Contents
 ########
 
 .. toctree::
+   :caption: Introduction
 
-   writeups/quickstart
-   writeups/how-mitm-works
-   writeups/customizing
-   writeups/asyncio-stream
+   introduction/quickstart
+   introduction/how-mitm-works
+
+.. toctree::
+   :caption: Customizing
+
+   customizing/internals
+   customizing/protocols
+   customizing/middlewares
    
 .. toctree::
   :caption: API
   :glob:
 
-  module/config
+  module/core
   module/crypto
+  module/protocol
   module/middleware
   module/mitm

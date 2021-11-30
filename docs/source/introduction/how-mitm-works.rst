@@ -2,7 +2,15 @@
 How mitm works
 ##############
 
-`mitm`, in simple terms, is a proxy server that purposely intercepts requests and responses going through it. To understand how `mitm` works on a larger level we must first familiarize ourselves with a raw HTTP communication, how a normal proxy functions, and finally how MITM works.
+A high-level overview on how a man-in-the-middle proxy works.
+
+----
+
+`mitm` is a TCP proxy server that is capable of intercepting requests and responses going through it.
+
+To understand how an mitm proxy works let's take a look at a simple example using the HTTP protocol. Lets familiarize ourselves with a raw HTTP communication, how a normal proxy functions, and finally how an MITM proxy works.
+
+----
 
 HTTP & HTTPS 
 ------------
@@ -68,6 +76,8 @@ And the client begins what is called the "TLS/SSL handshake," which you can read
 
 All of the above is important to have a general understanding of to comprehend how proxies work.
 
+----
+
 Proxies
 -------
 
@@ -94,6 +104,8 @@ In this case `requests` will generate the same HTTP request we saw above, but in
 The proxy, once it receives the HTTP request, interprets *where* the client is trying to go via either the first line of the request, or the ``Host`` header. It then opens a connection with the destination server on behalf of the client, and allows the client and the server to communicate between each other through *it*. In other words, a proxy is a 'man in the middle' whose job is primairly concentrated on conceling the IP address of the client. 
 
 When a client utilises HTTPS (``https://``) the initial request goes to the proxy, and subsequently the proxy connects the client and server. The difference here, however, is that after the client and server are connected they perform the TLS/SSL handshake and begin a secure connection. This connection is now encrypted and the client and server can communicate freely without fear of being intercepted.
+
+----
 
 Man-in-the-middle
 -----------------
