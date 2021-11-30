@@ -13,7 +13,7 @@ from OpenSSL import crypto
 from . import __data__
 
 
-def new_RSA(bits: int = 1024) -> crypto.PKey:
+def new_RSA(bits: int = 2048) -> crypto.PKey:
     """Generates an RSA pair.
 
     This function is intended to be utilized with :py:func:`new_X509`. See function
@@ -21,7 +21,7 @@ def new_RSA(bits: int = 1024) -> crypto.PKey:
     SSL/TLS use.
 
     Args:
-        bits: Size of the RSA key. Defaults to 1024.
+        bits: Size of the RSA key. Defaults to 2048.
     """
 
     rsa = crypto.PKey()
