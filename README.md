@@ -39,7 +39,7 @@ mitm = MITM(
     middlewares=[middleware.Log],
     buffer_size=8192,
     timeout=5,
-    ssl_context=crypto.mitm_ssl_context(),
+    ssl_context=crypto.mitm_ssl_default_context(),
     start=False,
 )
 mitm.start()
