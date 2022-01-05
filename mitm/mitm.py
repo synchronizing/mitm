@@ -5,9 +5,9 @@ Man-in-the-middle.
 import asyncio
 import logging
 import ssl
-from typing import List, Callable
+from typing import List
 
-import toolbox
+from toolbox.asyncio.pattern import CoroutineClass
 
 from . import __data__, crypto, middleware, protocol
 from .core import Connection, Flow, Host
@@ -16,7 +16,7 @@ logger = logging.getLogger(__package__)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
 
-class MITM(toolbox.ClassTask):
+class MITM(CoroutineClass):
     """
     Man-in-the-middle server.
     """
@@ -30,7 +30,7 @@ class MITM(toolbox.ClassTask):
         buffer_size: int = 8192,
         timeout: int = 5,
         ssl_context: ssl.SSLContext = crypto.mitm_ssl_default_context(),
-        start: bool = False,
+        run: bool = False,
     ):
         """
         Initializes the MITM class.
@@ -43,7 +43,7 @@ class MITM(toolbox.ClassTask):
             buffer_size: Buffer size to use. Defaults to `8192`.
             timeout: Timeout to use. Defaults to `5`.
             ssl_context: SSL context to use. Defaults to `crypto.mitm_ssl_default_context()`.
-            start: Whether to start the server immediately. Defaults to `False`.
+            run: Whether to start the server immediately. Defaults to `False`.
 
         Example:
 
@@ -52,7 +52,7 @@ class MITM(toolbox.ClassTask):
                 from mitm import MITM
 
                 mitm = MITM()
-                mitm.start()
+                mitm.run()
         """
         self.host = host
         self.port = port
@@ -61,14 +61,9 @@ class MITM(toolbox.ClassTask):
         self.buffer_size = buffer_size
         self.timeout = timeout
         self.ssl_context = ssl_context
+        super().__init__(run=run)
 
-        super().__init__(
-            func=lambda: self._run(callback=lambda: self._loop.stop()),
-            run_forever=True,
-            start=start,
-        )
-
-    async def _run(self, callback: Callable):
+    async def entry(self):
         """
         Runs the MITM server.
         """
@@ -85,7 +80,7 @@ class MITM(toolbox.ClassTask):
                 port=self.port,
             )
         except OSError as e:
-            callback()
+            self._loop.stop()
             raise e
 
         for mw in self.middlewares:
@@ -120,15 +115,16 @@ class MITM(toolbox.ClassTask):
                 writer = connection.client.writer
 
             while not event.is_set() and not reader.at_eof():
+                data = None
                 try:
                     data = await asyncio.wait_for(
                         reader.read(self.buffer_size),
                         self.timeout,
                     )
                 except asyncio.exceptions.TimeoutError:
-                    continue
+                    pass
 
-                if data == b"":
+                if not data:
                     event.set()
                     break
                 else:
