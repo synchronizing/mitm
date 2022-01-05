@@ -40,9 +40,8 @@ mitm = MITM(
     buffer_size=8192,
     timeout=5,
     ssl_context=crypto.mitm_ssl_default_context(),
-    start=False,
 )
-mitm.start()
+mitm.run()
 ```
 
 Above is the default values for the `MITM` class. 

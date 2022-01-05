@@ -31,10 +31,9 @@ You can easily boot-up the proxy and start intercepting traffic (explicitly usin
         middlewares=[middleware.Log],
         buffer_size=8192,
         timeout=5,
-        ssl_context=crypto.mitm_ssl_context(),
-        start=False,
+        ssl_context=crypto.mitm_ssl_default_context(),
     )
-    mitm.start()
+    mitm.run()
 
 While the example above is sufficient for printing out incoming/outgoing messages, the bread and butter of `mitm` is the ability to add custom protocols and middlewares. Check-out the docs on the left for more details.
 
