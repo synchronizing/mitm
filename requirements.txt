@@ -1,3 +1,4 @@
 PyOpenSSL==21.0.0
 appdirs==1.4.4
-httpq
+httpq==1.0.1
+toolbox==1.8.1
