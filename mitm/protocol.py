@@ -1,15 +1,16 @@
 """
-
+Custom protocol implementations for the MITM proxy.
 """
 
 import asyncio
 import ssl
 from abc import ABC, abstractclassmethod
 
-import httpq
-import toolbox
+from httpq import Request
+from toolbox.asyncio.streams import tls_handshake
 
 from .core import Connection, Host
+from typing import Tuple
 
 
 class InvalidProtocol(Exception):
@@ -58,8 +59,36 @@ class Protocol(ABC):
         if the connection was successful, raises `InvalidProtocol` if the connection
         failed.
 
+        Args:
+            connection: Connection object containing a client host.
+            data: The initial incoming data from the client.
+
         Returns:
             Whether the connection was successful.
+
+        Raises:
+            InvalidProtocol: If the connection failed.
+
+        Note:
+            This methods needs to be implemented by subclasses.
+        """
+        raise NotImplementedError
+
+    @abstractclassmethod
+    async def resolve_destination(
+        cls: "Protocol",
+        connection: Connection,
+        data: bytes,
+    ) -> Tuple[str, int, bool]:
+        """
+        Resolves the destination of the connection.
+
+        Args:
+            connection: Connection object containing a client host.
+            data: The initial incoming data from the client.
+
+        Returns:
+            A tuple containing the host, port, and whether the connection is secure (SSL).
 
         Raises:
             InvalidProtocol: If the connection failed.
@@ -101,13 +130,43 @@ class HTTP(Protocol):
         Raises:
             InvalidProtocol: If the connection failed.
         """
+
+        # Resolves destination to host.
+        host, port, tls = await cls.resolve_destination(connection, data)
+
+        # Connect to destination server and send initial request.
+        reader, writer = await asyncio.open_connection(
+            host=host,
+            port=port,
+            ssl=tls,
+        )
+        connection.server = Host(reader, writer)
+
+        # Send initial request if not SSL/TLS connection.
+        if not tls:
+            connection.server.writer.write(data)
+            await connection.server.writer.drain()
+
+        return True
+
+    @classmethod
+    async def resolve_destination(
+        cls: Protocol,
+        connection: Connection,
+        data: bytes,
+    ) -> Tuple[str, int, bool]:
+        """
+        Resolves the destination server for the protocol.
+        """
         try:
-            request = httpq.Request.parse(data)
+            request = Request.parse(data)
         except:
             raise InvalidProtocol
 
         # Deal with 'CONNECT'.
+        using_ssl = None
         if request.method == "CONNECT":
+            using_ssl = True
 
             # Get the hostname and port.
             if not request.target:
@@ -120,7 +179,7 @@ class HTTP(Protocol):
 
             # Perform handshake.
             try:
-                await toolbox.tls_handshake(
+                await tls_handshake(
                     reader=connection.client.reader,
                     writer=connection.client.writer,
                     ssl_context=connection.ssl_context,
@@ -129,34 +188,13 @@ class HTTP(Protocol):
             except ssl.SSLError:
                 raise InvalidProtocol
 
-            # Connect to destination server.
-            reader, writer = await asyncio.open_connection(
-                host=host,
-                port=int(port),
-                ssl=True,
-            )
-            connection.server = Host(reader, writer)
-
-            return True
-
         # Deal with any other HTTP method.
         elif request.method:
+            using_ssl = False
 
             # Get the hostname and port.
             if not "Host" in request.headers:
                 raise InvalidProtocol
             host, port = request.headers.get("Host").string, 80
 
-            # Connect to destination server and send initial request.
-            reader, writer = await asyncio.open_connection(
-                host=host,
-                port=port,
-                ssl=False,
-            )
-            connection.server = Host(reader, writer)
-            connection.server.writer.write(data)
-            await connection.server.writer.drain()
-
-            return True
-
-        raise InvalidProtocol
+        return host, int(port), using_ssl
