@@ -1,3 +1,7 @@
+"""
+Custom middlware implementation for the MITM proxy.
+"""
+
 from abc import ABC, abstractstaticmethod
 
 from .core import Connection
