@@ -20,3 +20,13 @@ from .core import *
 from .protocol import *
 from .middleware import *
 from .mitm import *
+
+__all__ = [
+    "Host",
+    "Connection",
+    "Flow",
+    "MITM",
+    "Middleware",
+    "Protocol",
+    "InvalidProtocol",
+]

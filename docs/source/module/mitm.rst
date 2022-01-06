@@ -13,7 +13,7 @@ mitm
 .. autoclass:: mitm.mitm.MITM
     
     .. autofunction:: mitm.mitm.MITM.__init__
-    .. autofunction:: mitm.mitm.MITM.start
+    .. autofunction:: mitm.mitm.MITM.entry
 
         The server is started by using `asyncio.start_server <https://docs.python.org/3/library/asyncio-stream.html#asyncio.start_server>`_ function like so:
 

@@ -53,28 +53,6 @@ class Protocol(ABC):
     bytes_needed: int
 
     @abstractclassmethod
-    async def connect(cls: "Protocol", connection: Connection, data: bytes) -> bool:
-        """
-        Attempts to connect to destination server using the given data. Returns `True`
-        if the connection was successful, raises `InvalidProtocol` if the connection
-        failed.
-
-        Args:
-            connection: Connection object containing a client host.
-            data: The initial incoming data from the client.
-
-        Returns:
-            Whether the connection was successful.
-
-        Raises:
-            InvalidProtocol: If the connection failed.
-
-        Note:
-            This methods needs to be implemented by subclasses.
-        """
-        raise NotImplementedError
-
-    @abstractclassmethod
     async def resolve_destination(
         cls: "Protocol",
         connection: Connection,
@@ -89,6 +67,28 @@ class Protocol(ABC):
 
         Returns:
             A tuple containing the host, port, and whether the connection is secure (SSL).
+
+        Raises:
+            InvalidProtocol: If the connection failed.
+
+        Note:
+            This methods needs to be implemented by subclasses.
+        """
+        raise NotImplementedError
+
+    @abstractclassmethod
+    async def connect(cls: "Protocol", connection: Connection, data: bytes) -> bool:
+        """
+        Attempts to connect to destination server using the given data. Returns `True`
+        if the connection was successful, raises `InvalidProtocol` if the connection
+        failed.
+
+        Args:
+            connection: Connection object containing a client host.
+            data: The initial incoming data from the client.
+
+        Returns:
+            Whether the connection was successful.
 
         Raises:
             InvalidProtocol: If the connection failed.
@@ -114,40 +114,6 @@ class HTTP(Protocol):
     """
 
     bytes_needed = 8192
-
-    @classmethod
-    async def connect(cls: Protocol, connection: Connection, data: bytes) -> bool:
-        """
-        Connects to the destination server if the data is a valid HTTP request.
-
-        Args:
-            connection: The connection to the destination server.
-            data: The data received from the client.
-
-        Returns:
-            Whether the connection was successful.
-
-        Raises:
-            InvalidProtocol: If the connection failed.
-        """
-
-        # Resolves destination to host.
-        host, port, tls = await cls.resolve_destination(connection, data)
-
-        # Connect to destination server and send initial request.
-        reader, writer = await asyncio.open_connection(
-            host=host,
-            port=port,
-            ssl=tls,
-        )
-        connection.server = Host(reader, writer)
-
-        # Send initial request if not SSL/TLS connection.
-        if not tls:
-            connection.server.writer.write(data)
-            await connection.server.writer.drain()
-
-        return True
 
     @classmethod
     async def resolve_destination(
@@ -198,3 +164,37 @@ class HTTP(Protocol):
             host, port = request.headers.get("Host").string, 80
 
         return host, int(port), using_ssl
+
+    @classmethod
+    async def connect(cls: Protocol, connection: Connection, data: bytes) -> bool:
+        """
+        Connects to the destination server if the data is a valid HTTP request.
+
+        Args:
+            connection: The connection to the destination server.
+            data: The data received from the client.
+
+        Returns:
+            Whether the connection was successful.
+
+        Raises:
+            InvalidProtocol: If the connection failed.
+        """
+
+        # Resolves destination to host.
+        host, port, tls = await cls.resolve_destination(connection, data)
+
+        # Connect to destination server and send initial request.
+        reader, writer = await asyncio.open_connection(
+            host=host,
+            port=port,
+            ssl=tls,
+        )
+        connection.server = Host(reader, writer)
+
+        # Send initial request if not SSL/TLS connection.
+        if not tls:
+            connection.server.writer.write(data)
+            await connection.server.writer.drain()
+
+        return True

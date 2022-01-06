@@ -83,7 +83,7 @@ From there, the following steps occur:
 
 6. If the server connected successfully, then the `mitm` begins a cycle where it relays data between the client and the server. When the data flow is from client to server, the `mitm.middleware.Middleware.client_data` function is called for all middlewares. When the data flow is from server to client, the `mitm.middleware.Middleware.server_data` function is called for all middlewares.
 
-7. Once the server and client are done communicating, or the `mitm` server times out a singular read, the `mitm.middleware.Middleware.client_disconnected` and `mitm.middleware.Middleware.server_disconnected` function is called for all middlewares.
+7. Once the server and client are done communicating, or the `mitm` server times out, the `mitm.middleware.Middleware.client_disconnected` and `mitm.middleware.Middleware.server_disconnected` function is called for all middlewares.
 
 ----
 

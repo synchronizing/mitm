@@ -8,7 +8,7 @@ A high-level overview on how a man-in-the-middle proxy works.
 
 `mitm` is a TCP proxy server that is capable of intercepting requests and responses going through it.
 
-To understand how an mitm proxy works let's take a look at a simple example using the HTTP protocol. Lets familiarize ourselves with a raw HTTP communication, how a normal proxy functions, and finally how an MITM proxy works.
+To understand how an mitm proxy works let's take a look at a simple example using the HTTP protocol. Let's familiarize ourselves with a raw HTTP communication, how a normal proxy functions, and finally how an MITM proxy works.
 
 ----
 

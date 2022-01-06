@@ -2,11 +2,15 @@
 Custom `mitm.Middleware`
 ########################
 
+Understanding and overview of a custom middleware. 
+
+----
+
 Middlewares are simple hooks that are called in different stages of the client connection, and can be used to modify incoming and outgoing requests. To initiate a middleware you need to create a class that inherits from the `mitm.middleware.Middleware` class. Middlewares can be used for two things:
 
 1. As hooks for certain events that occur during the `mitm` flow.
 
-3. As a way to modify incoming requests, and outgoing responses.
+2. As a way to modify incoming requests, and outgoing responses.
 
 Middlewares can implement the following methods:
 

@@ -11,7 +11,7 @@
   </a>
 </p>
 
-A customizable man-in-the-middle TCP proxy with support for HTTP & HTTPS.
+A customizable man-in-the-middle TCP proxy with out-of-the-box support for HTTP & HTTPS.
 
 ## Installing
 
@@ -27,7 +27,7 @@ Documentation can be found [**here**](https://synchronizing.github.io/mitm/).
 
 ## Using
 
-You can easily boot-up the proxy and start intercepting traffic:
+Using the default values for the `MITM` class:
 
 ```python
 from mitm import MITM, protocol, middleware, crypto
@@ -44,17 +44,16 @@ mitm = MITM(
 mitm.run()
 ```
 
-Above is the default values for the `MITM` class. 
-
-While the example above is sufficient for printing out incoming/outgoing messages, the bread and butter of `mitm` is the ability to add custom protocols and middlewares.
+This will start a proxy on port 8888 that is capable of intercepting all HTTP traffic (with support for `CONNECT`), and log all activity.
 
 #### Protocols
 
-`mitm` allows the addition of custom application-layer protocols that can be used to intercept and redirect traffic. Built-into the `mitm` library is the HTTP protocol (with TLS/`CONNECT` support). To read and understand more about protocols check out the documentations.
+`mitm` comes with a set of built-in protocols, and a way to add your own. `Protocols` and are used to implement custom
+[application-layer protocols](https://en.wikipedia.org/wiki/Application_layer) that interpret and route traffic. Out-of-the-box `HTTP` is available.
 
 #### Middlewares
 
-Custom middlewares allow programmatic customizations to incoming and outgoing requests. Middlewares can be used to modify the request, response, or both. To read and understand more about middlewares check out the documentation.
+Middleware are used to implement event-driven behavior as it relates to the client and server connection. Out-of-the-box `Log` is available.
 
 ### Example
 

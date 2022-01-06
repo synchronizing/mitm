@@ -2,7 +2,7 @@
 Quickstart
 ##########
 
-A customizable man-in-the-middle TCP proxy with support for HTTP & HTTPS.
+A customizable man-in-the-middle TCP proxy with out-of-the-box support for HTTP & HTTPS.
 
 ----
 
@@ -18,7 +18,7 @@ Note that OpenSSL 1.1.1 or greater is required.
 Using
 -----
 
-You can easily boot-up the proxy and start intercepting traffic (explicitly using default values):
+Using the default values for the :py:class:`mitm.MITM` class:
 
 .. code-block:: python
 
@@ -35,8 +35,7 @@ You can easily boot-up the proxy and start intercepting traffic (explicitly usin
     )
     mitm.run()
 
-While the example above is sufficient for printing out incoming/outgoing messages, the bread and butter of `mitm` is the ability to add custom protocols and middlewares. Check-out the docs on the left for more details.
-
+This will start a proxy on port 8888 that is capable of intercepting all HTTP traffic (with support for `CONNECT`), and log all activity.
 
 Questions & Answers
 --------------------

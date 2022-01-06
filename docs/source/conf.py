@@ -48,7 +48,7 @@ keep_default_values = False
 hide_class_values = True
 
 # Test
-default_role = 'py:obj'
+default_role = "py:obj"
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
