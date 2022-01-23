@@ -41,7 +41,11 @@ class Host:
         return self.reader is not None and self.writer is not None
 
     def __repr__(self):
-        return f"Host(reader={self.reader}, writer={self.writer})"
+        if self.reader:
+            client = self.reader._transport.get_extra_info("peername")
+            return f"Host({client})"
+        else:
+            return "Host()"
 
 
 @dataclass
