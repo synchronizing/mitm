@@ -29,6 +29,7 @@ class MITM(CoroutineClass):
         middlewares: List[middleware.Middleware] = [middleware.Log],
         buffer_size: int = 8192,
         timeout: int = 5,
+        keep_alive: bool = True,
         ssl_context: ssl.SSLContext = crypto.mitm_ssl_default_context(),
         run: bool = False,
     ):
@@ -42,6 +43,7 @@ class MITM(CoroutineClass):
             middlewares: List of middlewares to use. Defaults to `[middleware.Log]`.
             buffer_size: Buffer size to use. Defaults to `8192`.
             timeout: Timeout to use. Defaults to `5`.
+            keep_alive: Whether to keep the connection alive. Defaults to `True`.
             ssl_context: SSL context to use. Defaults to `crypto.mitm_ssl_default_context()`.
             run: Whether to start the server immediately. Defaults to `False`.
 
@@ -60,6 +62,7 @@ class MITM(CoroutineClass):
         self.protocols = protocols
         self.buffer_size = buffer_size
         self.timeout = timeout
+        self.keep_alive = keep_alive
         self.ssl_context = ssl_context
         super().__init__(run=run)
 
@@ -91,12 +94,7 @@ class MITM(CoroutineClass):
 
     async def mitm(self, connection: Connection):
         """
-        Handles a single connection.
-
-        This method is called by the asyncio server when a new connection is
-        established. The connection is passed to the middlewares at different points
-        in the process, as well as the protocols when attempting to resolve the
-        destination server.
+        Handles an incoming connection.
 
         Warning:
             This method is not intended to be called directly.
@@ -104,7 +102,7 @@ class MITM(CoroutineClass):
 
         async def _relay(connection: Connection, event: asyncio.Event, flow: Flow):
             """
-            Forwards data between two connections.
+            Forwards data between two hosts in a Connection.
             """
 
             if flow == Flow.CLIENT_TO_SERVER:
@@ -139,7 +137,7 @@ class MITM(CoroutineClass):
                     writer.write(data)
                     await writer.drain()
 
-        # Runs initial middlewares.
+        #  Calls middlewares for client initial connect.
         for mw in self.middlewares:
             await mw.client_connected(connection=connection)
 
@@ -147,43 +145,60 @@ class MITM(CoroutineClass):
         min_bytes_needed = max(proto.bytes_needed for proto in self.protocols)
         data = await connection.client.reader.read(n=min_bytes_needed)
 
-        # Calls middleware on initial data.
+        # Calls middleware on client's data.
         for mw in self.middlewares:
             await mw.client_data(connection=connection, data=data)
 
-        # Finds the protocol that matches the data.
+        # Finds the protocol that matches the data, and connects to the server.
+        found = False
         for proto in self.protocols:
             try:
-                connected = await proto.connect(connection=connection, data=data)
-                if connected:
+                found = await proto.connect(connection=connection, data=data)
+                if found:
                     break
             except protocol.InvalidProtocol:
-                connected = False
+                pass
 
-        # Server connected successfully.
-        if connected:
-
-            # Calls middlewares for server connected.
+        # Protocol was found, and we connected to a server.
+        if found:
             for mw in self.middlewares:
                 await mw.server_connected(connection=connection)
 
-            # Relays data between client/server.
-            event = asyncio.Event()
-            await asyncio.gather(
-                _relay(connection, event, Flow.SERVER_TO_CLIENT),
-                _relay(connection, event, Flow.CLIENT_TO_SERVER),
-            )
+            # Keeps the connection alive until the client or server closes it.
+            run_once = True
+            while (
+                not connection.client.reader.at_eof()
+                and not connection.server.reader.at_eof()
+                and (self.keep_alive or run_once)
+            ):
 
-        # Close connections.
-        if not connection.client.writer.is_closing():
-            connection.client.writer.close()
-            await connection.client.writer.wait_closed()
+                # Keeps trying to relay data until the connection closes.
+                event = asyncio.Event()
+                await asyncio.gather(
+                    _relay(connection, event, Flow.SERVER_TO_CLIENT),
+                    _relay(connection, event, Flow.CLIENT_TO_SERVER),
+                )
 
-        if connection.server and connection.server.writer.is_closing():
+                # Run the while loop only one iteration if keep_alive is False.
+                run_once = False
+
+        # If a server connection exists, we close it too.
+        if connection.server:
             connection.server.writer.close()
             await connection.server.writer.wait_closed()
 
+            # Calls the server's 'disconnected' middleware.
+            for mw in self.middlewares:
+                await mw.server_disconnected(connection=connection)
+
+        # Attempts to disconnect with the client.
+        # In some instances 'wait_closed()' might hang. This is a knowm issue that
+        # happens when and if the client keeps the connection alive, and, unfortunately,
+        # there is nothing we can do about it. This is a reported bug.
+        # https://bugs.python.org/issue39758
+        connection.client.writer.close()
+        await connection.client.writer.wait_closed()
+
+        # Calls the client 'disconnected' middleware.
         for mw in self.middlewares:
             await mw.client_disconnected(connection=connection)
-            if connection.server:
-                await mw.server_disconnected(connection=connection)

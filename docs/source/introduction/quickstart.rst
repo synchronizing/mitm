@@ -31,6 +31,7 @@ Using the default values for the :py:class:`mitm.MITM` class:
         middlewares=[middleware.Log],
         buffer_size=8192,
         timeout=5,
+        keep_alive=True,
         ssl_context=crypto.mitm_ssl_default_context(),
     )
     mitm.run()
