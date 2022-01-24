@@ -150,17 +150,18 @@ class MITM(CoroutineClass):
             await mw.client_data(connection=connection, data=data)
 
         # Finds the protocol that matches the data, and connects to the server.
-        found = False
-        for proto in self.protocols:
+        found, proto = False, None
+        for protocol in self.protocols:
             try:
-                found = await proto.connect(connection=connection, data=data)
+                found = await protocol.connect(connection=connection, data=data)
                 if found:
+                    proto = protocol
                     break
             except protocol.InvalidProtocol:
                 pass
 
         # Protocol was found, and we connected to a server.
-        if found:
+        if found and connection.server:
             for mw in self.middlewares:
                 await mw.server_connected(connection=connection)
 
@@ -181,9 +182,14 @@ class MITM(CoroutineClass):
 
                 # Run the while loop only one iteration if keep_alive is False.
                 run_once = False
+        elif found and not connection.server:
+            raise ValueError(
+                "The protocol was found, but the server was not connected. "
+                f"Check the {proto.__class__.__name__} implementation."
+            )
 
-        # If a server connection exists, we close it too.
-        if connection.server:
+        # If a server connection exists, we close it.
+        if connection.server and connection.server.mitm_managed:
             connection.server.writer.close()
             await connection.server.writer.wait_closed()
 
@@ -194,7 +200,7 @@ class MITM(CoroutineClass):
         # Attempts to disconnect with the client.
         # In some instances 'wait_closed()' might hang. This is a knowm issue that
         # happens when and if the client keeps the connection alive, and, unfortunately,
-        # there is nothing we can do about it. This is a reported bug.
+        # there is nothing we can do about it. This is a reported bug in asyncio.
         # https://bugs.python.org/issue39758
         connection.client.writer.close()
         await connection.client.writer.wait_closed()

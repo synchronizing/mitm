@@ -19,12 +19,18 @@ class Host:
     client, and a server. A client host is one that is connected to the `mitm`, and a
     server host is one that the `mitm` connected to on behalf of the client.
 
+    The `mitm_managed` attribute is used to determine whether the `mitm` should
+    manage the host. If `mitm_managed` is `True`, the `mitm` will close the host
+    when it is done with it. If `mitm_managed` is `False`, the `mitm` will not
+    close the host.
+
     Note:
         See more on `dataclasses <https://docs.python.org/3/library/dataclasses.html>`_.
 
     Args:
         reader: The reader of the host.
         writer: The writer of the host.
+        mitm_managed: Whether or not the host is managed by the `mitm`.
 
     Example:
 
@@ -36,16 +42,17 @@ class Host:
 
     reader: Optional[asyncio.StreamReader] = None
     writer: Optional[asyncio.StreamWriter] = None
+    mitm_managed: Optional[bool] = False
 
     def __bool__(self):
         return self.reader is not None and self.writer is not None
 
     def __repr__(self):
         if self.reader:
-            client = self.reader._transport.get_extra_info("peername")
-            return f"Host({client})"
+            ip, port = self.reader._transport.get_extra_info("peername")
+            return f"Host({ip}:{port}, mitm_managed={self.mitm_managed})"
         else:
-            return "Host()"
+            return f"Host(mitm_managed={self.mitm_managed})"
 
 
 @dataclass
