@@ -70,23 +70,23 @@ requests.get("https://httpbin.org/anything", proxies=proxies, verify=False)
 Which will lead to the following being logged where `mitm` is running in:
 
 ```
-2021-11-29 10:33:02 INFO     MITM started on 127.0.0.1:8888.
-2021-11-29 10:33:03 INFO     Client 127.0.0.1:54771 has connected.
-2021-11-29 10:33:03 INFO     Client to server:
+2022-02-27 12:19:40 INFO     MITM server started on 127.0.0.1:8080.
+2022-02-27 12:19:42 INFO     Client 127.0.0.1:53033 has connected.
+2022-02-27 12:19:42 INFO     Client 127.0.0.1:53033 to mitm:
 
 	b'CONNECT httpbin.org:443 HTTP/1.0\r\n\r\n'
 
-2021-11-29 10:33:03 INFO     Connected to server 18.232.227.86:443.
-2021-11-29 10:33:03 INFO     Client to server:
+2022-02-27 12:19:42 INFO     Connected to server 52.55.211.119:443.
+2022-02-27 12:19:42 INFO     Client 127.0.0.1:53033 to server 52.55.211.119:443:
 
 	b'GET /anything HTTP/1.1\r\nHost: httpbin.org\r\nUser-Agent: python-requests/2.26.0\r\nAccept-Encoding: gzip, deflate\r\nAccept: */*\r\nConnection: keep-alive\r\n\r\n'
 
-2021-11-29 10:33:03 INFO     Server to client:
+2022-02-27 12:19:42 INFO     Server 52.55.211.119:443 to client 127.0.0.1:53033:
 
-	b'HTTP/1.1 200 OK\r\nDate: Mon, 29 Nov 2021 15:33:03 GMT\r\nContent-Type: application/json\r\nContent-Length: 396\r\nConnection: keep-alive\r\nServer: gunicorn/19.9.0\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Credentials: true\r\n\r\n{\n  "args": {}, \n  "data": "", \n  "files": {}, \n  "form": {}, \n  "headers": {\n    "Accept": "*/*", \n    "Accept-Encoding": "gzip, deflate", \n    "Host": "httpbin.org", \n    "User-Agent": "python-requests/2.26.0", \n    "X-Amzn-Trace-Id": "Root=1-61a4f2af-2de4362101f0cab43f6407b1"\n  }, \n  "json": null, \n  "method": "GET", \n  "origin": "xxx.xx.xxx.xx", \n  "url": "https://httpbin.org/anything"\n}\n'
+	b'HTTP/1.1 200 OK\r\nDate: Sun, 27 Feb 2022 17:19:42 GMT\r\nContent-Type: application/json\r\nContent-Length: 396\r\nConnection: keep-alive\r\nServer: gunicorn/19.9.0\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Credentials: true\r\n\r\n{\n  "args": {}, \n  "data": "", \n  "files": {}, \n  "form": {}, \n  "headers": {\n    "Accept": "*/*", \n    "Accept-Encoding": "gzip, deflate", \n    "Host": "httpbin.org", \n    "User-Agent": "python-requests/2.26.0", \n    "X-Amzn-Trace-Id": "Root=1-621bb2ae-38b24f564e3a026c13e948b6"\n  }, \n  "json": null, \n  "method": "GET", \n  "origin": "xx.xxx.xxx.xxx", \n  "url": "https://httpbin.org/anything"\n}\n'
 
-2021-11-29 10:33:08 INFO     Client has disconnected.
-2021-11-29 10:33:08 INFO     Server has disconnected.
+2022-02-27 12:19:47 INFO     Server 52.55.211.119:443 has disconnected.
+2022-02-27 12:19:47 INFO     Client 127.0.0.1:53033 has disconnected.
 ```
 
 ---
