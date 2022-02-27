@@ -6,7 +6,7 @@ import asyncio
 import ssl
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -32,6 +32,13 @@ class Host:
         writer: The writer of the host.
         mitm_managed: Whether or not the host is managed by the `mitm`.
 
+    Properties:
+        reader: The reader of the host.
+        writer: The writer of the host.
+        mitm_managed: Whether or not the host is managed by the `mitm`.
+        ip: The IP address of the host.
+        port: The port of the host.
+
     Example:
 
         .. code-block:: python
@@ -44,15 +51,44 @@ class Host:
     writer: Optional[asyncio.StreamWriter] = None
     mitm_managed: Optional[bool] = False
 
+    def __post_init__(self):
+        """
+        Initializes the host and port information for the Host.
+
+        This method is called by the Dataclass' `__init__` method post-initialization.
+        """
+
+        # At this point the self.writer is either None or a StreamWriter.
+        if self.writer:
+            self.host, self.port = self.writer._transport.get_extra_info("peername")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """
+        Sets Host attributes.
+
+        We hijack this method to set the `host` and `port` attributes if/when the writer
+        is set.
+        """
+        if (
+            name == "writer"
+            and isinstance(value, asyncio.StreamWriter)
+            and not getattr(self, "host", None)
+            and not getattr(self, "port", None)
+        ):
+            self.host, self.port = value._transport.get_extra_info("peername")
+        return super().__setattr__(name, value)
+
     def __bool__(self):
         return self.reader is not None and self.writer is not None
 
     def __repr__(self):
         if self.reader:
-            ip, port = self.reader._transport.get_extra_info("peername")
-            return f"Host({ip}:{port}, mitm_managed={self.mitm_managed})"
+            return f"Host({self.host}:{self.port}, mitm_managed={self.mitm_managed})"
         else:
             return f"Host(mitm_managed={self.mitm_managed})"
+
+    def __str__(self):
+        return f"{self.host}:{self.port}"
 
 
 @dataclass
