@@ -49,7 +49,7 @@ class Host:
 
     reader: Optional[asyncio.StreamReader] = None
     writer: Optional[asyncio.StreamWriter] = None
-    mitm_managed: Optional[bool] = False
+    mitm_managed: Optional[bool] = True
 
     def __post_init__(self):
         """
