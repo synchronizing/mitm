@@ -2,35 +2,35 @@
 Custom middlware implementation for the MITM proxy.
 """
 
-from abc import ABC, abstractstaticmethod
+from abc import ABC, abstractmethod
 
 from .core import Connection
 
 
 class Middleware(ABC):
-    @abstractstaticmethod
-    async def mitm_started(host: str, port: int):
+    @abstractmethod
+    async def mitm_started(self, host: str, port: int):
         """
         Called when the mitm has started.
         """
         raise NotImplementedError
 
-    @abstractstaticmethod
-    async def client_connected(connection: Connection):
+    @abstractmethod
+    async def client_connected(self, connection: Connection):
         """
         Called when the connection is established with the client.
         """
         raise NotImplementedError
 
-    @abstractstaticmethod
-    async def server_connected(connection: Connection):
+    @abstractmethod
+    async def server_connected(self, connection: Connection):
         """
         Called when the connection is established with the server.
         """
         raise NotImplementedError
 
-    @abstractstaticmethod
-    async def client_data(connection: Connection, data: bytes) -> bytes:
+    @abstractmethod
+    async def client_data(self, connection: Connection, data: bytes) -> bytes:
         """
         Called when data is received from the client.
 
@@ -49,8 +49,8 @@ class Middleware(ABC):
         """
         raise NotImplementedError
 
-    @abstractstaticmethod
-    async def server_data(connection: Connection, data: bytes) -> bytes:
+    @abstractmethod
+    async def server_data(self, connection: Connection, data: bytes) -> bytes:
         """
         Called when data is received from the server.
 
@@ -62,15 +62,15 @@ class Middleware(ABC):
         """
         raise NotImplementedError
 
-    @abstractstaticmethod
-    async def client_disconnected(connection: Connection):
+    @abstractmethod
+    async def client_disconnected(self, connection: Connection):
         """
         Called when the client disconnects.
         """
         raise NotImplementedError
 
-    @abstractstaticmethod
-    async def server_disconnected(connection: Connection):
+    @abstractmethod
+    async def server_disconnected(self, connection: Connection):
         """
         Called when the server disconnects.
 
@@ -90,34 +90,44 @@ class Log(Middleware):
     """
     Logging middleware.
     """
-    @staticmethod
-    async def mitm_started(host: str, port: int):
-        logger.info("MITM started on %s:%d." % (host, port))
 
-    @staticmethod
-    async def client_connected(connection: Connection):
-        host, port = connection.client.writer._transport.get_extra_info("peername")
-        logger.info("Client %s:%i has connected." % (host, port))
+    def __init__(self):
+        self.connection: Connection = None
 
-    @staticmethod
-    async def server_connected(connection: Connection):
-        host, port = connection.server.writer._transport.get_extra_info("peername")
-        logger.info("Connected to server %s:%i." % (host, port))
+    async def mitm_started(self, host: str, port: int):
+        logger.info("MITM server started on %s:%d." % (host, port))
 
-    @staticmethod
-    async def client_data(connection: Connection, data: bytes) -> bytes:
-        logger.info("Client to server: \n\n\t%s\n" % data)
+    async def client_connected(self, connection: Connection):
+        logger.info("Client %s has connected." % (connection.client))
+
+    async def server_connected(self, connection: Connection):
+        logger.info("Connected to server %s." % (connection.server))
+
+    async def client_data(self, connection: Connection, data: bytes) -> bytes:
+
+        # The first request is intended for the 'mitm' server to discover the
+        # destination server.
+        if not connection.server:
+            logger.info("Client %s to mitm: \n\n\t%s\n" % (connection.client, data))
+
+        # All requests thereafter are intended for the destination server.
+        else:
+            logger.info(
+                "Client %s to server %s: \n\n\t%s\n"
+                % (connection.client, connection.server, data)
+            )
+
         return data
 
-    @staticmethod
-    async def server_data(connection: Connection, data: bytes) -> bytes:
-        logger.info("Server to client: \n\n\t%s\n" % data)
+    async def server_data(self, connection: Connection, data: bytes) -> bytes:
+        logger.info(
+            "Server %s to client %s: \n\n\t%s\n"
+            % (connection.server, connection.client, data)
+        )
         return data
 
-    @staticmethod
-    async def client_disconnected(connection: Connection):
-        logger.info("Client has disconnected.")
+    async def client_disconnected(self, connection: Connection):
+        logger.info("Client %s has disconnected." % (connection.client))
 
-    @staticmethod
-    async def server_disconnected(connection: Connection):
-        logger.info("Server has disconnected.")
+    async def server_disconnected(self, connection: Connection):
+        logger.info("Server %s has disconnected." % (connection.server))
