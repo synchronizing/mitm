@@ -1,4 +1,4 @@
-""" 
+"""
 Man-in-the-middle.
 """
 
@@ -58,12 +58,20 @@ class MITM(CoroutineClass):
         """
         self.host = host
         self.port = port
-        self.middlewares = middlewares
         self.protocols = protocols
         self.buffer_size = buffer_size
         self.timeout = timeout
         self.keep_alive = keep_alive
         self.ssl_context = ssl_context
+
+        # Initialize any middleware that is not already initialized.
+        new_middleware = []
+        for middleware in middlewares:
+            if isinstance(middleware, type):
+                middleware = middleware()
+            new_middleware.append(middleware)
+        self.middlewares = new_middleware
+
         super().__init__(run=run)
 
     async def entry(self):
@@ -162,6 +170,8 @@ class MITM(CoroutineClass):
 
         # Protocol was found, and we connected to a server.
         if found and connection.server:
+
+            # Calls middleware for server initial connect.
             for mw in self.middlewares:
                 await mw.server_connected(connection=connection)
 
@@ -198,7 +208,7 @@ class MITM(CoroutineClass):
                 await mw.server_disconnected(connection=connection)
 
         # Attempts to disconnect with the client.
-        # In some instances 'wait_closed()' might hang. This is a knowm issue that
+        # In some instances 'wait_closed()' might hang. This is a known issue that
         # happens when and if the client keeps the connection alive, and, unfortunately,
         # there is nothing we can do about it. This is a reported bug in asyncio.
         # https://bugs.python.org/issue39758
