@@ -11,7 +11,7 @@
   </a>
 </p>
 
-A customizable man-in-the-middle TCP proxy with out-of-the-box support for HTTP & HTTPS.
+A customizable man-in-the-middle TCP proxy with out-of-the-box support for HTTP & HTTPS¹.
 
 ## Installing
 
@@ -88,3 +88,7 @@ Which will lead to the following being logged where `mitm` is running in:
 2021-11-29 10:33:08 INFO     Client has disconnected.
 2021-11-29 10:33:08 INFO     Server has disconnected.
 ```
+
+---
+
+[1] Note that by "HTTPS" we mean a proxy that supports the `CONNECT` statement and not one that instantly performs a TLS handshake on connection with the client (before a valid HTTP/1.1 exchange). `mitm` is flexible enough that this can be added if needed.
