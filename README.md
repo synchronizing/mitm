@@ -46,7 +46,6 @@ mitm.run()
 ```
 
 This will start a proxy on port 8888 that is capable of intercepting all HTTP traffic (with support for `CONNECT`), and log all activity.
-
 #### Protocols
 
 `mitm` comes with a set of built-in protocols, and a way to add your own. `Protocols` and are used to implement custom

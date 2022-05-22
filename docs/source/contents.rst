@@ -9,6 +9,12 @@ Contents
    introduction/how-mitm-works
 
 .. toctree::
+   :caption: Guides
+
+   guides/trusting-mitm
+
+
+.. toctree::
    :caption: Customizing
 
    customizing/internals
