@@ -7,7 +7,7 @@ import ssl
 from pathlib import Path
 from typing import Optional, Union
 
-from OpenSSL import crypto
+import OpenSSL
 
 from mitm import __data__
 
@@ -29,7 +29,7 @@ def is_ip(host: str) -> bool:
         return False
 
 
-def new_RSA(bits: int = 2048) -> crypto.PKey:
+def new_RSA(bits: int = 2048) -> OpenSSL.crypto.PKey:
     """
     Generates an RSA pair.
 
@@ -41,8 +41,8 @@ def new_RSA(bits: int = 2048) -> crypto.PKey:
         bits: Size of the RSA key. Defaults to 2048.
     """
 
-    rsa = crypto.PKey()
-    rsa.generate_key(crypto.TYPE_RSA, bits)
+    rsa = OpenSSL.crypto.PKey()
+    rsa.generate_key(OpenSSL.crypto.TYPE_RSA, bits)
     return rsa
 
 
@@ -56,7 +56,7 @@ def new_X509(
     serial_number: int = random.randint(0, 2 ** 64 - 1),
     time_not_before: int = 0,  # 0 means now.
     time_not_after: int = 1 * (365 * 24 * 60 * 60),  # 1 year.
-) -> crypto.X509:
+) -> OpenSSL.crypto.X509:
     """
     Generates a non-signed X509 certificate.
 
@@ -76,7 +76,7 @@ def new_X509(
         time_not_after: Time when cert is no longer valid. Defaults to 5 years.
     """
 
-    cert = crypto.X509()
+    cert = OpenSSL.crypto.X509()
     cert.get_subject().C = country_name
     cert.get_subject().ST = state_or_province_name
     cert.get_subject().L = locality
@@ -98,8 +98,8 @@ class CertificateAuthority:
 
     def __init__(
         self,
-        key: Optional[crypto.PKey] = None,
-        cert: Optional[crypto.X509] = None,
+        key: Optional[OpenSSL.crypto.PKey] = None,
+        cert: Optional[OpenSSL.crypto.X509] = None,
     ):
         """
         Generates a certificate authority.
@@ -115,9 +115,9 @@ class CertificateAuthority:
         self.cert.set_pubkey(self.key)
         self.cert.add_extensions(
             [
-                crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE, pathlen:0"),
-                crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
-                crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=self.cert),
+                OpenSSL.crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE, pathlen:0"),
+                OpenSSL.crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
+                OpenSSL.crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=self.cert),
             ],
         )
         self.cert.sign(self.key, "sha256")
@@ -141,7 +141,7 @@ class CertificateAuthority:
 
         return ca
 
-    def new_cert(self, host: str) -> crypto.X509:
+    def new_cert(self, host: str) -> OpenSSL.crypto.X509:
         """
         Generates a new certificate for the host.
         """
@@ -150,7 +150,7 @@ class CertificateAuthority:
         key = new_RSA()
 
         # Generates new X509Request.
-        req = crypto.X509Req()
+        req = OpenSSL.crypto.X509Req()
         req.get_subject().CN = host.encode("utf-8")
         req.set_pubkey(key)
         req.sign(key, "sha256")
@@ -169,7 +169,7 @@ class CertificateAuthority:
             hosts += [f"DNS:*.{host}"]
 
         hosts = ", ".join(hosts).encode("utf-8")
-        cert.add_extensions([crypto.X509Extension(b"subjectAltName", False, hosts)])
+        cert.add_extensions([OpenSSL.crypto.X509Extension(b"subjectAltName", False, hosts)])
 
         # Sign the certificate.
         cert.sign(self.key, "sha256")
@@ -188,11 +188,11 @@ class CertificateAuthority:
 
         cert_path.parent.mkdir(parents=True, exist_ok=True)
         with cert_path.open("wb") as f:
-            f.write(crypto.dump_certificate(crypto.FILETYPE_PEM, self.cert))
+            f.write(OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, self.cert))
 
         key_path.parent.mkdir(parents=True, exist_ok=True)
         with key_path.open("wb") as f:
-            f.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, self.key))
+            f.write(OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, self.key))
 
     @classmethod
     def load(cls, cert_path: Union[Path, str], key_path: Union[Path, str]):
@@ -206,15 +206,15 @@ class CertificateAuthority:
         cert_path, key_path = Path(cert_path), Path(key_path)
 
         with cert_path.open("rb") as f:
-            cert = crypto.load_certificate(crypto.FILETYPE_PEM, f.read())
+            cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f.read())
 
         with key_path.open("rb") as f:
-            key = crypto.load_privatekey(crypto.FILETYPE_PEM, f.read())
+            key = OpenSSL.crypto.load_privatekey(OpenSSL.crypto.FILETYPE_PEM, f.read())
 
         return cls(key, cert)
 
 
-def new_context(cert: crypto.X509, key: crypto.PKey) -> ssl.SSLContext:
+def new_context(cert: OpenSSL.crypto.X509, key: OpenSSL.crypto.PKey) -> ssl.SSLContext:
     """
     Creates a new SSLContext with the CA certificate.
 
@@ -226,8 +226,8 @@ def new_context(cert: crypto.X509, key: crypto.PKey) -> ssl.SSLContext:
     """
 
     # Dump the cert and key.
-    cert_dump = crypto.dump_certificate(crypto.FILETYPE_PEM, cert)
-    key_dump = crypto.dump_privatekey(crypto.FILETYPE_PEM, key)
+    cert_dump = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
+    key_dump = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, key)
 
     # Store cert and key into file. Unfortunately we need to store them in disk because
     # the SSLContext does not support loading from memory. This is a limitation of the

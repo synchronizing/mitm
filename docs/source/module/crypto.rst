@@ -11,10 +11,12 @@ crypto
 
 -----
 
+.. automethod:: mitm.crypto.is_ip
+
 .. automethod:: mitm.crypto.new_RSA
 
 .. automethod:: mitm.crypto.new_X509
 
-.. automethod:: mitm.crypto.new_pair
+.. autoclass:: mitm.crypto.CertificateAuthority
 
-.. automethod:: mitm.crypto.mitm_ssl_default_context
+.. automethod:: mitm.crypto.new_context
