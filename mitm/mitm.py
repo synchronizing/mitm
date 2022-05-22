@@ -4,13 +4,13 @@ Man-in-the-middle.
 
 import asyncio
 import logging
-import ssl
 from typing import List
 
 from toolbox.asyncio.pattern import CoroutineClass
 
-from . import __data__, crypto, middleware, protocol
+from . import __data__, middleware, protocol
 from .core import Connection, Flow, Host
+from .crypto import CertificateAuthority
 
 logger = logging.getLogger(__package__)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
@@ -30,7 +30,7 @@ class MITM(CoroutineClass):
         buffer_size: int = 8192,
         timeout: int = 5,
         keep_alive: bool = True,
-        ssl_context: ssl.SSLContext = crypto.mitm_ssl_default_context(),
+        ca: CertificateAuthority = None,
         run: bool = False,
     ):
         """
@@ -44,7 +44,7 @@ class MITM(CoroutineClass):
             buffer_size: Buffer size to use. Defaults to `8192`.
             timeout: Timeout to use. Defaults to `5`.
             keep_alive: Whether to keep the connection alive. Defaults to `True`.
-            ssl_context: SSL context to use. Defaults to `crypto.mitm_ssl_default_context()`.
+            ca: Certificate authority to use. Defaults to `CertificateAuthority()`.
             run: Whether to start the server immediately. Defaults to `False`.
 
         Example:
@@ -62,7 +62,11 @@ class MITM(CoroutineClass):
         self.buffer_size = buffer_size
         self.timeout = timeout
         self.keep_alive = keep_alive
-        self.ssl_context = ssl_context
+        self.ca = ca if ca else CertificateAuthority()
+
+        # Stores the CA certificate and private key.
+        cert_path, key_path = __data__ / "mitm.crt", __data__ / "mitm.key"
+        self.ca.save(cert_path=cert_path, key_path=key_path)
 
         # Initialize any middleware that is not already initialized.
         new_middleware = []
@@ -84,7 +88,6 @@ class MITM(CoroutineClass):
                     Connection(
                         client=Host(reader=reader, writer=writer),
                         server=Host(),
-                        ssl_context=self.ssl_context,
                     )
                 ),
                 host=self.host,
@@ -161,7 +164,7 @@ class MITM(CoroutineClass):
         found, proto = False, None
         for protocol in self.protocols:
             try:
-                found = await protocol.connect(connection=connection, data=data)
+                found = await protocol.connect(connection=connection, data=data, ca=self.ca)
                 if found:
                     proto = protocol
                     break

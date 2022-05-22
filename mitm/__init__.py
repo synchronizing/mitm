@@ -1,7 +1,7 @@
 __author__ = "Felipe Faria"
 
-import appdirs
 import pathlib
+import appdirs
 
 __data__ = pathlib.Path(appdirs.user_data_dir(__package__, __author__))
 
@@ -17,9 +17,10 @@ logging.basicConfig(
 
 
 from .core import *
-from .protocol import *
+from .crypto import *
 from .middleware import *
 from .mitm import *
+from .protocol import *
 
 __all__ = [
     "Host",
@@ -29,4 +30,5 @@ __all__ = [
     "Middleware",
     "Protocol",
     "InvalidProtocol",
+    "CertificateAuthority",
 ]

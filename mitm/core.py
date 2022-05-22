@@ -3,7 +3,6 @@ Core components of the MITM framework.
 """
 
 import asyncio
-import ssl
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
@@ -106,21 +105,18 @@ class Connection:
     Args:
         client: The client host.
         server: The server host.
-        ssl_context: The SSL context of the connection.
 
     Example:
         .. code-block:: python
 
             client = Host(...)
             server = Host(...)
-            ssl_context = ssl.SSLContext(...)
 
-            connection = Connection(client, server, ssl_context)
+            connection = Connection(client, server)
     """
 
     client: Host
     server: Host
-    ssl_context: ssl.SSLContext
 
     def __repr__(self):
         return f"<Connection client={self.client} server={self.server}>"
