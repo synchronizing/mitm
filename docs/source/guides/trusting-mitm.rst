@@ -12,10 +12,10 @@ When `mitm` runs it generates a `certificate authority <https://en.wikipedia.org
     Type "help", "copyright", "credits" or "license" for more information.
     >>> import mitm
     >>> mitm.__data__
-    PosixPath('/Users/felipefaria/Library/Application Support/mitm') # You should see a different path.
+    PosixPath('/Users/felipe/Library/Application Support/mitm') # You should see a different path.
     >>> exit()
     
-    $ ls /Users/felipefaria/Library/Application\ Support/mitm
+    $ ls /Users/felipe/Library/Application\ Support/mitm
     mitm.key mitm.pem
     
 Customizing Path
@@ -29,7 +29,7 @@ To customize the path where the certificate is generated, you can use the follow
     from pathlib import Path
 
     # Loads the CA certificate.
-    path = Path("/Users/felipefaria/Desktop")
+    path = Path("/Users/felipe/Desktop")
     ca = CertificateAuthority.init(path=path)
 
     # Starts the MITM server.
