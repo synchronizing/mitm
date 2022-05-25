@@ -188,8 +188,8 @@ class HTTP(Protocol):
                     ssl_context=ssl_context,
                     server_side=True,
                 )
-            except ssl.SSLError:
-                raise InvalidProtocol
+            except ssl.SSLError as err:
+                raise InvalidProtocol from err
 
         # Connect to the destination server and send the initial request.
         reader, writer = await asyncio.open_connection(
