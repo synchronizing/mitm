@@ -10,7 +10,7 @@ from httpq import Request
 from toolbox.asyncio.streams import tls_handshake
 
 from .core import Connection, Host
-from .crypto import CertificateAuthority, new_context
+from .crypto import CertificateAuthority, new_ssl_context
 
 
 class InvalidProtocol(Exception):
@@ -66,7 +66,7 @@ class Protocol(ABC):
             data: The initial incoming data from the client.
 
         Returns:
-            A tuple containing the host, port, and TLS cert string if any.
+            A tuple containing the host, port, and bool if the connection is encrypted.
 
         Raises:
             InvalidProtocol: If the connection failed.
@@ -120,7 +120,7 @@ class HTTP(Protocol):
         cls: Protocol,
         connection: Connection,
         data: bytes,
-    ) -> Tuple[str, int, str]:
+    ) -> Tuple[str, int, bool]:
         """
         Resolves the destination server for the protocol.
         """
@@ -130,8 +130,9 @@ class HTTP(Protocol):
             raise InvalidProtocol
 
         # Deal with 'CONNECT'.
-        certificate = None
+        tls = False
         if request.method == "CONNECT":
+            tls = True
 
             # Get the hostname and port.
             if not request.target:
@@ -142,9 +143,6 @@ class HTTP(Protocol):
             connection.client.writer.write(b"HTTP/1.1 200 OK\r\n\r\n")
             await connection.client.writer.drain()
 
-            # Retrieves the server's certificate.
-            certificate = ssl.get_server_certificate((host, port))
-
         # Deal with any other HTTP method.
         elif request.method:
 
@@ -153,7 +151,7 @@ class HTTP(Protocol):
                 raise InvalidProtocol
             host, port = request.headers.get("Host").string, 80
 
-        return host, int(port), certificate
+        return host, int(port), tls
 
     @classmethod
     async def connect(cls: Protocol, connection: Connection, data: bytes, ca: CertificateAuthority) -> bool:
@@ -178,9 +176,9 @@ class HTTP(Protocol):
         # Generate certificate if TLS.
         if certificate:
 
-            # Creates a copy of the SSL context, and signs it with the CA.
-            cert, key = ca.new_cert(host)
-            ssl_context = new_context(cert, key)
+            # Creates a copy of the destination server X509 certificate.
+            cert, key = ca.new_X509(host)
+            ssl_context = new_ssl_context(cert, key)
 
             # Perform handshake.
             try:
@@ -193,11 +191,7 @@ class HTTP(Protocol):
             except ssl.SSLError:
                 raise InvalidProtocol
 
-        # Connect to destination server and send initial request. Unfortunately due to
-        # some unknown bug with asyncio we are unable to extract the certificate from
-        # the server via 'asyncio.open_connection' before tls_handshake is called. We
-        # open two indepedent connections to the server, one to retrieve the
-        # certificate, and one to send the request.
+        # Connect to the destination server and send the initial request.
         reader, writer = await asyncio.open_connection(
             host=host,
             port=port,

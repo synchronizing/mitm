@@ -1,32 +1,16 @@
 """
 Cryptography functionalities.
 """
+
 import random
-import socket
 import ssl
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 import OpenSSL
+from toolbox.sockets.ip import is_ip
 
 from mitm import __data__
-
-
-def is_ip(host: str) -> bool:
-    """
-    Checks if the host is an IP address.
-
-    Args:
-        host: The hostname to check.
-
-    Returns:
-        ``True`` if the host is an IP address, ``False`` otherwise.
-    """
-    try:
-        socket.inet_aton(host)
-        return True
-    except socket.error:
-        return False
 
 
 def new_RSA(bits: int = 2048) -> OpenSSL.crypto.PKey:
@@ -109,7 +93,7 @@ class CertificateAuthority:
             cert: Unsigned certificate of the CA. Generated if not provided.
         """
         self.key = key if key else new_RSA()
-        self.cert = cert if cert else new_X509(common_name="mitm")
+        self.cert = cert if cert else new_X509()
 
         # Creates CA.
         self.cert.set_pubkey(self.key)
@@ -125,14 +109,13 @@ class CertificateAuthority:
     @classmethod
     def init(cls, path: Path):
         """
-        Helper init method.
+        Helper init method to initialize or load a CA.
 
         Args:
             folder: The folder to initialize.
         """
 
         pem, key = path / "mitm.pem", path / "mitm.key"
-
         if not pem.exists() or not key.exists():
             ca = CertificateAuthority()
             ca.save(cert_path=pem, key_path=key)
@@ -141,9 +124,18 @@ class CertificateAuthority:
 
         return ca
 
-    def new_cert(self, host: str) -> OpenSSL.crypto.X509:
+    def new_X509(self, host: str) -> Tuple[OpenSSL.crypto.X509, OpenSSL.crypto.PKey]:
         """
         Generates a new certificate for the host.
+
+        Notes:
+            The hostname must be a valid IP address or a valid hostname.
+
+        Args:
+            host: Hostname to generate the certificate for.
+
+        Returns:
+            A tuple of the certificate and private key.
         """
 
         # Generate a new key pair.
@@ -171,7 +163,7 @@ class CertificateAuthority:
         hosts = ", ".join(hosts).encode("utf-8")
         cert.add_extensions([OpenSSL.crypto.X509Extension(b"subjectAltName", False, hosts)])
 
-        # Sign the certificate.
+        # Signs the certificate with the CA's key.
         cert.sign(self.key, "sha256")
 
         return cert, key
@@ -195,7 +187,7 @@ class CertificateAuthority:
             f.write(OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, self.key))
 
     @classmethod
-    def load(cls, cert_path: Union[Path, str], key_path: Union[Path, str]):
+    def load(cls, cert_path: Union[Path, str], key_path: Union[Path, str]) -> "CertificateAuthority":
         """
         Loads the certificate authority and its private key from disk.
 
@@ -214,20 +206,21 @@ class CertificateAuthority:
         return cls(key, cert)
 
 
-def new_context(cert: OpenSSL.crypto.X509, key: OpenSSL.crypto.PKey) -> ssl.SSLContext:
+def new_ssl_context(X509: OpenSSL.crypto.X509, PKey: OpenSSL.crypto.PKey) -> ssl.SSLContext:
     """
-    Creates a new SSLContext with the CA certificate.
+    Generates a new SSLContext with the given X509 certificate and private key.
 
     Args:
-        cert_str: The certificate dump as a string.
+        X509: X509 certificate.
+        PKey: Private key.
 
     Returns:
         The SSLContext.
     """
 
     # Dump the cert and key.
-    cert_dump = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
-    key_dump = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, key)
+    cert_dump = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, X509)
+    key_dump = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, PKey)
 
     # Store cert and key into file. Unfortunately we need to store them in disk because
     # the SSLContext does not support loading from memory. This is a limitation of the
