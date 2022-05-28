@@ -171,10 +171,10 @@ class HTTP(Protocol):
         """
 
         # Resolves destination to host.
-        host, port, certificate = await cls.resolve_destination(connection, data)
+        host, port, tls = await cls.resolve_destination(connection, data)
 
         # Generate certificate if TLS.
-        if certificate:
+        if tls:
 
             # Creates a copy of the destination server X509 certificate.
             cert, key = ca.new_X509(host)
@@ -195,12 +195,12 @@ class HTTP(Protocol):
         reader, writer = await asyncio.open_connection(
             host=host,
             port=port,
-            ssl=bool(certificate),
+            ssl=tls,
         )
         connection.server = Host(reader, writer)
 
         # Send initial request if not SSL/TLS connection.
-        if not certificate:
+        if not tls:
             connection.server.writer.write(data)
             await connection.server.writer.drain()
 
