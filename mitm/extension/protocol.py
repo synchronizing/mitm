@@ -3,127 +3,13 @@ Custom protocol implementations for the MITM proxy.
 """
 import asyncio
 import ssl
-from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple
+from typing import Tuple
 
 from httpq import Request
 from toolbox.asyncio.streams import tls_handshake
 
-from .core import Connection, Flow, Host
-from .crypto import CertificateAuthority, new_ssl_context
-from .middleware import Middleware
-
-
-class InvalidProtocol(Exception):
-    """
-    Exception raised when the protocol did not work.
-
-    This is the only error that `mitm.MITM` will catch. Throwing this error will
-    continue the search for a valid protocol.
-    """
-
-
-class Protocol(ABC):
-    """
-    An abstract class for a custom protocol implementation.
-
-    The `bytes_needed` is used to determine the minimum number of bytes needed to be
-    read from the connection to identify all of the protocols. This is done by getting
-    the `max()` of the `bytes_needed` of all the protocols, and reading that many
-    bytes from the connection.
-
-    Args:
-        bytes_needed: The minimum number of bytes needed to identify the protocol.
-
-    Example:
-
-        Template for a protocol implementation:
-
-        .. code-block:: python
-
-            from mitm import Protocol, Connection
-
-            class MyProtocol(Protocol):
-                bytes_needed = 4
-
-                @classmethod
-                async def connect(cls: Protocol, connection: Connection, data: bytes) -> bool:
-                    # Do something with the data.
-    """
-
-    def __init__(
-        self,
-        bytes_needed: int = 8192,
-        buffer_size: int = 8192,
-        timeout: int = 15,
-        keep_alive: bool = True,
-        certificate_authority: CertificateAuthority = CertificateAuthority(),
-        middlewares: List[Middleware] = [],
-    ):
-        self.bytes_needed = bytes_needed
-        self.buffer_size = buffer_size
-        self.timeout = timeout
-        self.keep_alive = keep_alive
-        self.certificate_authority = certificate_authority
-        self.middlewares = middlewares
-
-    @abstractmethod
-    async def resolve(self, connection: Connection, data: bytes) -> Optional[Tuple[str, int, bool]]:
-        """
-        Resolves the destination of the connection.
-
-        Args:
-            connection: Connection object containing a client host.
-            data: The initial incoming data from the client.
-
-        Returns:
-            A tuple containing the host, port, and bool if the connection is encrypted.
-
-        Raises:
-            InvalidProtocol: If the connection failed.
-
-        Note:
-            This methods needs to be implemented by subclasses.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    async def connect(self, connection: Connection, host: str, port: int, tls: bool, data: bytes):
-        """
-        Attempts to connect to destination server using the given data. Returns `True`
-        if the connection was successful, raises `InvalidProtocol` if the connection
-        failed.
-
-        Args:
-            connection: Connection object containing a client host.
-            data: The initial incoming data from the client.
-
-        Returns:
-            Whether the connection was successful.
-
-        Raises:
-            InvalidProtocol: If the connection failed.
-
-        Note:
-            This methods needs to be implemented by subclasses.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    async def handle(self, connection: Connection):
-        """
-        Handles the connection between a client and a server.
-
-        Args:
-            connection: Client/server connection to relay.
-
-        Note:
-            This methods needs to be implemented by subclasses.
-        """
-        raise NotImplementedError
-
-    def __repr__(self):
-        return f"<Protocol: {self.__class__.__name__}>"
+from ..core import Connection, Flow, Host, InvalidProtocol, Protocol
+from ..crypto import new_ssl_context
 
 
 class HTTP(Protocol):

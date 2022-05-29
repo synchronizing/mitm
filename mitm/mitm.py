@@ -8,9 +8,10 @@ from typing import List
 
 from toolbox.asyncio.pattern import CoroutineClass
 
-from . import __data__, middleware, protocol
+from . import __data__
 from .core import Connection, Host
 from .crypto import CertificateAuthority
+from .extension import middleware, protocol
 
 logger = logging.getLogger(__package__)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
@@ -137,6 +138,9 @@ class MITM(CoroutineClass):
 
         # Protocol was found, and we connected to a server.
         if proto and connection.server:
+
+            # Sets the connection protocol.
+            connection.protocol = proto
 
             # Calls middleware for server initial connect.
             for mw in self.middlewares:
