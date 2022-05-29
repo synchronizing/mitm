@@ -232,8 +232,6 @@ class HTTP(Protocol):
             and (self.keep_alive or run_once)
         ):
 
-            print("HERE? 2")
-
             # Keeps trying to relay data until the connection closes.
             event = asyncio.Event()
             await asyncio.gather(
