@@ -8,10 +8,10 @@ from typing import List
 
 from toolbox.asyncio.pattern import CoroutineClass
 
-from . import __data__
-from .core import Connection, Host
-from .crypto import CertificateAuthority
-from .extension import middleware, protocol
+from mitm import __data__
+from mitm.core import Connection, Host
+from mitm.crypto import CertificateAuthority
+from mitm.extension import middleware, protocol
 
 logger = logging.getLogger(__package__)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)

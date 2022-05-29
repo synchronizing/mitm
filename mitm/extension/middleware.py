@@ -4,9 +4,8 @@ Custom middlware implementation for the MITM proxy.
 
 import logging
 
+from mitm.core import Connection, Middleware
 from toolbox.string.color import bold
-
-from ..core import Connection, Middleware
 
 logger = logging.getLogger(__package__)
 

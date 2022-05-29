@@ -6,10 +6,9 @@ import ssl
 from typing import Tuple
 
 from httpq import Request
+from mitm.core import Connection, Flow, Host, InvalidProtocol, Protocol
+from mitm.crypto import new_ssl_context
 from toolbox.asyncio.streams import tls_handshake
-
-from ..core import Connection, Flow, Host, InvalidProtocol, Protocol
-from ..crypto import new_ssl_context
 
 
 class HTTP(Protocol):

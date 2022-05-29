@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, List, Optional, Tuple
 
-from .crypto import CertificateAuthority
+from mitm.crypto import CertificateAuthority
 
 
 @dataclass
