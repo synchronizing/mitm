@@ -80,6 +80,9 @@ class Middleware(ABC):
         """
         raise NotImplementedError
 
+    def __repr__(self):
+        return f"<Middleware: {self.__class__.__name__}>"
+
 
 import logging
 
@@ -112,18 +115,12 @@ class Log(Middleware):
 
         # All requests thereafter are intended for the destination server.
         else:
-            logger.info(
-                "Client %s to server %s: \n\n\t%s\n"
-                % (connection.client, connection.server, data)
-            )
+            logger.info("Client %s to server %s: \n\n\t%s\n" % (connection.client, connection.server, data))
 
         return data
 
     async def server_data(self, connection: Connection, data: bytes) -> bytes:
-        logger.info(
-            "Server %s to client %s: \n\n\t%s\n"
-            % (connection.server, connection.client, data)
-        )
+        logger.info("Server %s to client %s: \n\n\t%s\n" % (connection.server, connection.client, data))
         return data
 
     async def client_disconnected(self, connection: Connection):
