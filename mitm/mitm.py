@@ -27,7 +27,7 @@ class MITM(CoroutineClass):
         port: int = 8888,
         protocols: List[protocol.Protocol] = [protocol.HTTP],
         middlewares: List[middleware.Middleware] = [middleware.Log],
-        ca: CertificateAuthority = None,
+        certificate_authority: CertificateAuthority = CertificateAuthority(),
         run: bool = False,
     ):
         """
@@ -55,11 +55,11 @@ class MITM(CoroutineClass):
         """
         self.host = host
         self.port = port
-        self.ca = ca if ca else CertificateAuthority()
+        self.certificate_authority = certificate_authority
 
         # Stores the CA certificate and private key.
         cert_path, key_path = __data__ / "mitm.crt", __data__ / "mitm.key"
-        self.ca.save(cert_path=cert_path, key_path=key_path)
+        self.certificate_authority.save(cert_path=cert_path, key_path=key_path)
 
         # Initialize any middleware that is not already initialized.
         new_middlewares = []
@@ -73,7 +73,7 @@ class MITM(CoroutineClass):
         new_protocols = []
         for protocol in protocols:
             if isinstance(protocol, type):
-                protocol = protocol(ca=self.ca, middlewares=self.middlewares)
+                protocol = protocol(certificate_authority=self.certificate_authority, middlewares=self.middlewares)
             new_protocols.append(protocol)
         self.protocols = new_protocols
 

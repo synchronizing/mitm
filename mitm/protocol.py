@@ -55,16 +55,16 @@ class Protocol(ABC):
         self,
         bytes_needed: int = 8192,
         buffer_size: int = 8192,
-        timeout: int = 5,
+        timeout: int = 15,
         keep_alive: bool = True,
-        ca: CertificateAuthority = CertificateAuthority(),
+        certificate_authority: CertificateAuthority = CertificateAuthority(),
         middlewares: List[Middleware] = [],
     ):
         self.bytes_needed = bytes_needed
         self.buffer_size = buffer_size
         self.timeout = timeout
         self.keep_alive = keep_alive
-        self.ca = ca
+        self.certificate_authority = certificate_authority
         self.middlewares = middlewares
 
     @abstractmethod
@@ -192,7 +192,7 @@ class HTTP(Protocol):
             await connection.client.writer.drain()
 
             # Creates a copy of the destination server X509 certificate.
-            cert, key = self.ca.new_X509(host)
+            cert, key = self.certificate_authority.new_X509(host)
             ssl_context = new_ssl_context(cert, key)
 
             # Perform handshake.
