@@ -11,7 +11,7 @@
   </a>
 </p>
 
-A customizable man-in-the-middle TCP proxy with out-of-the-box support for HTTP & HTTPS¹.
+A customizable man-in-the-middle TCP proxy with support for HTTP & HTTPS.
 
 ## Installing
 
@@ -37,24 +37,22 @@ mitm = MITM(
     port=8888,
     protocols=[protocol.HTTP],
     middlewares=[middleware.Log],
-    buffer_size=8192,
-    timeout=5,
-    keep_alive=True,
+    certificate_authority = crypto.CertificateAuthority()
 )
 mitm.run()
 ```
 
-This will start a proxy on port 8888 that is capable of intercepting all HTTP traffic (with support for `CONNECT`), and log all activity.
-#### Protocols
+This will start a proxy on port 8888 that is capable of intercepting all HTTP traffic (with support for SSL/TLS) and log all activity.
 
-`mitm` comes with a set of built-in protocols, and a way to add your own. `Protocols` and are used to implement custom
-[application-layer protocols](https://en.wikipedia.org/wiki/Application_layer) that interpret and route traffic. Out-of-the-box `HTTP` is available.
+## Extensions
 
-#### Middlewares
+`mitm` can be customized through the implementations of middlewares and protocols. 
 
-Middleware are used to implement event-driven behavior as it relates to the client and server connection. Out-of-the-box `Log` is available.
+[Middlewares](https://synchronizing.github.io/mitm/customizing/middlewares.html) are event-driven hooks that are called when a connection is made, request is sent, response is received, and connection is closed. 
 
-### Example
+[Protocols](https://synchronizing.github.io/mitm/customizing/protocols.html) are implementations on _how_ the data flows between the client and server, and is responsible for the nitty-gritty details of the protocol. Out of the box `mitm` supports HTTP and HTTPS.
+
+## Example
 
 Using the example above we can send a request to the server via another script:
 
@@ -86,7 +84,3 @@ Which will lead to the following being logged where `mitm` is running in:
 2022-02-27 12:19:47 INFO     Server 52.55.211.119:443 has disconnected.
 2022-02-27 12:19:47 INFO     Client 127.0.0.1:53033 has disconnected.
 ```
-
----
-
-[1] Note that by "HTTPS" we mean a proxy that supports the `CONNECT` statement and not one that instantly performs a TLS handshake on connection with the client (before a valid HTTP/1.1 exchange). `mitm` is flexible enough that this can be added if needed.
