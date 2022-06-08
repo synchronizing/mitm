@@ -39,10 +39,7 @@ class MITM(CoroutineClass):
             port: Port to listen on. Defaults to `8888`.
             protocols: List of protocols to use. Defaults to `[protocol.HTTP]`.
             middlewares: List of middlewares to use. Defaults to `[middleware.Log]`.
-            buffer_size: Buffer size to use. Defaults to `8192`.
-            timeout: Timeout to use. Defaults to `5`.
-            keep_alive: Whether to keep the connection alive. Defaults to `True`.
-            ca: Certificate authority to use. Defaults to `CertificateAuthority()`.
+            certificate_authority: Certificate authority to use. Defaults to `CertificateAuthority()`.
             run: Whether to start the server immediately. Defaults to `False`.
 
         Example:
@@ -82,7 +79,7 @@ class MITM(CoroutineClass):
 
     async def entry(self):
         """
-        Runs the MITM server.
+        Entry point for the MITM class.
         """
         try:
             server = await asyncio.start_server(
@@ -107,7 +104,7 @@ class MITM(CoroutineClass):
 
     async def mitm(self, connection: Connection):
         """
-        Handles an incoming connection.
+        Handles an incoming connection (single connection).
 
         Warning:
             This method is not intended to be called directly.

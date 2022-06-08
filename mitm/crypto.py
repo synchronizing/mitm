@@ -130,7 +130,7 @@ class CertificateAuthority:
         """
         Generates a new certificate for the host.
 
-        Notes:
+        Note:
             The hostname must be a valid IP address or a valid hostname.
 
         Args:
@@ -226,9 +226,11 @@ def new_ssl_context(X509: OpenSSL.crypto.X509, PKey: OpenSSL.crypto.PKey) -> ssl
     key_dump = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, PKey)
 
     # Store cert and key into file. Unfortunately we need to store them in disk because
-    # the SSLContext does not support loading from memory. This is a limitation of the
-    # Python standard library. To speed things up we could implement this with a custom
-    # package like M2Crypto, but that's a bit too much work for now.
+    # SSLContext does not support loading from memory. This is a limitation of the
+    # Python standard library, and the community: https://bugs.python.org/issue16487
+    # Alternatives cannot be used for this because this context is eventually used by
+    # asyncio.get_event_loop().start_tls(..., sslcontext=..., ...) parameter, which
+    # only support ssl.SSLContext.
     cert_path, key_path = __data__ / "temp.crt", __data__ / "temp.key"
     cert_path.parent.mkdir(parents=True, exist_ok=True)
     with cert_path.open("wb") as f:

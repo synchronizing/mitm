@@ -6,9 +6,10 @@ import ssl
 from typing import Tuple
 
 from httpq import Request
+from toolbox.asyncio.streams import tls_handshake
+
 from mitm.core import Connection, Flow, Host, InvalidProtocol, Protocol
 from mitm.crypto import new_ssl_context
-from toolbox.asyncio.streams import tls_handshake
 
 
 class HTTP(Protocol):
@@ -25,9 +26,24 @@ class HTTP(Protocol):
     use the largest number found in other projects.
     """
 
+    bytes_needed: int = 8192
+    buffer_size: int = 8192
+    timeout: int = 15
+    keep_alive: bool = True
+
     async def resolve(self, connection: Connection, data: bytes) -> Tuple[str, int, bool]:
         """
         Resolves the destination server for the protocol.
+
+        Args:
+            connection: Connection object containing a client host.
+            data: The initial incoming data from the client.
+
+        Returns:
+            A tuple containing the host, port, and bool if the connection is encrypted.
+
+        Raises:
+            InvalidProtocol: If the connection failed.
         """
         try:
             request = Request.parse(data)
@@ -48,7 +64,7 @@ class HTTP(Protocol):
         elif request.method:
 
             # Get the hostname and port.
-            if not "Host" in request.headers:
+            if "Host" not in request.headers:
                 raise InvalidProtocol
             host, port = request.headers.get("Host").string, 80
 
@@ -61,9 +77,6 @@ class HTTP(Protocol):
         Args:
             connection: The connection to the destination server.
             data: The initial data received from the client.
-
-        Returns:
-            Whether the connection was successful.
 
         Raises:
             InvalidProtocol: If the connection failed.
