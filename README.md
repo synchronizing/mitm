@@ -48,9 +48,9 @@ This will start a proxy on port `8888` that is capable of intercepting all HTTP 
 
 `mitm` can be customized through the implementations of middlewares and protocols. 
 
-[Middlewares](https://synchronizing.github.io/mitm/customizing/middlewares.html) are event-driven hooks that are called when connections are made, requests are sent, responses are received, and connections are closed. 
+[Middlewares](https://synchronizing.github.io/mitm/docs/internals.html#mitm.core.Middleware) are event-driven hooks that are called when connections are made, requests are sent, responses are received, and connections are closed. 
 
-[Protocols](https://synchronizing.github.io/mitm/customizing/protocols.html) are implementations on _how_ the data flows between the client and server, and is responsible for the nitty-gritty details of the protocol. Out of the box `mitm` supports HTTP and HTTPS.
+[Protocols](https://synchronizing.github.io/mitm/docs/internals.html#mitm.core.Protocol) are implementations on _how_ the data flows between the client and server, and is responsible for the nitty-gritty details of the protocol. Out of the box `mitm` supports HTTP and HTTPS.
 
 ## Example
 
