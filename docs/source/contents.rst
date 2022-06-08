@@ -9,17 +9,10 @@ Contents
    introduction/how-mitm-works
 
 .. toctree::
-   :caption: Guides
+   :caption: Docs
 
-   guides/trusting-mitm
-
-
-.. toctree::
-   :caption: Customizing
-
-   customizing/internals
-   customizing/protocols
-   customizing/middlewares
+   docs/trusting-mitm
+   docs/internals
    
 .. toctree::
   :caption: API
@@ -27,6 +20,5 @@ Contents
 
   module/core
   module/crypto
-  module/protocol
-  module/middleware
+  module/extension
   module/mitm

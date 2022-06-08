@@ -15,12 +15,10 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-
-from .core import *
-from .crypto import *
-from .middleware import *
-from .mitm import *
-from .protocol import *
+from mitm.core import *
+from mitm.crypto import *
+from mitm.extension import *
+from mitm.mitm import *
 
 __all__ = [
     "Host",

@@ -8,9 +8,10 @@ from typing import List
 
 from toolbox.asyncio.pattern import CoroutineClass
 
-from . import __data__, middleware, protocol
-from .core import Connection, Flow, Host
-from .crypto import CertificateAuthority
+from mitm import __data__
+from mitm.core import Connection, Host
+from mitm.crypto import CertificateAuthority
+from mitm.extension import middleware, protocol
 
 logger = logging.getLogger(__package__)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
@@ -27,10 +28,7 @@ class MITM(CoroutineClass):
         port: int = 8888,
         protocols: List[protocol.Protocol] = [protocol.HTTP],
         middlewares: List[middleware.Middleware] = [middleware.Log],
-        buffer_size: int = 8192,
-        timeout: int = 5,
-        keep_alive: bool = True,
-        ca: CertificateAuthority = None,
+        certificate_authority: CertificateAuthority = CertificateAuthority(),
         run: bool = False,
     ):
         """
@@ -41,10 +39,7 @@ class MITM(CoroutineClass):
             port: Port to listen on. Defaults to `8888`.
             protocols: List of protocols to use. Defaults to `[protocol.HTTP]`.
             middlewares: List of middlewares to use. Defaults to `[middleware.Log]`.
-            buffer_size: Buffer size to use. Defaults to `8192`.
-            timeout: Timeout to use. Defaults to `5`.
-            keep_alive: Whether to keep the connection alive. Defaults to `True`.
-            ca: Certificate authority to use. Defaults to `CertificateAuthority()`.
+            certificate_authority: Certificate authority to use. Defaults to `CertificateAuthority()`.
             run: Whether to start the server immediately. Defaults to `False`.
 
         Example:
@@ -58,29 +53,33 @@ class MITM(CoroutineClass):
         """
         self.host = host
         self.port = port
-        self.protocols = protocols
-        self.buffer_size = buffer_size
-        self.timeout = timeout
-        self.keep_alive = keep_alive
-        self.ca = ca if ca else CertificateAuthority()
+        self.certificate_authority = certificate_authority
 
         # Stores the CA certificate and private key.
         cert_path, key_path = __data__ / "mitm.crt", __data__ / "mitm.key"
-        self.ca.save(cert_path=cert_path, key_path=key_path)
+        self.certificate_authority.save(cert_path=cert_path, key_path=key_path)
 
         # Initialize any middleware that is not already initialized.
-        new_middleware = []
+        new_middlewares = []
         for middleware in middlewares:
             if isinstance(middleware, type):
                 middleware = middleware()
-            new_middleware.append(middleware)
-        self.middlewares = new_middleware
+            new_middlewares.append(middleware)
+        self.middlewares = new_middlewares
+
+        # Initialize any protocol that is not already initialized.
+        new_protocols = []
+        for protocol in protocols:
+            if isinstance(protocol, type):
+                protocol = protocol(certificate_authority=self.certificate_authority, middlewares=self.middlewares)
+            new_protocols.append(protocol)
+        self.protocols = new_protocols
 
         super().__init__(run=run)
 
     async def entry(self):
         """
-        Runs the MITM server.
+        Entry point for the MITM class.
         """
         try:
             server = await asyncio.start_server(
@@ -105,48 +104,11 @@ class MITM(CoroutineClass):
 
     async def mitm(self, connection: Connection):
         """
-        Handles an incoming connection.
+        Handles an incoming connection (single connection).
 
         Warning:
             This method is not intended to be called directly.
         """
-
-        async def _relay(connection: Connection, event: asyncio.Event, flow: Flow):
-            """
-            Forwards data between two hosts in a Connection.
-            """
-
-            if flow == Flow.CLIENT_TO_SERVER:
-                reader = connection.client.reader
-                writer = connection.server.writer
-            elif flow == Flow.SERVER_TO_CLIENT:
-                reader = connection.server.reader
-                writer = connection.client.writer
-
-            while not event.is_set() and not reader.at_eof():
-                data = None
-                try:
-                    data = await asyncio.wait_for(
-                        reader.read(self.buffer_size),
-                        self.timeout,
-                    )
-                except asyncio.exceptions.TimeoutError:
-                    pass
-
-                if not data:
-                    event.set()
-                    break
-                else:
-
-                    # Pass data through middlewares.
-                    for mw in self.middlewares:
-                        if flow == Flow.SERVER_TO_CLIENT:
-                            data = await mw.server_data(connection, data)
-                        elif flow == Flow.CLIENT_TO_SERVER:
-                            data = await mw.client_data(connection, data)
-
-                    writer.write(data)
-                    await writer.drain()
 
         #  Calls middlewares for client initial connect.
         for mw in self.middlewares:
@@ -160,48 +122,42 @@ class MITM(CoroutineClass):
         for mw in self.middlewares:
             await mw.client_data(connection=connection, data=data)
 
-        # Finds the protocol that matches the data, and connects to the server.
-        found, proto = False, None
-        for protocol in self.protocols:
+        # Finds the protocol that matches the data.
+        proto = None
+        for prtcl in self.protocols:
+            proto = prtcl
             try:
-                found = await protocol.connect(connection=connection, data=data, ca=self.ca)
-                if found:
-                    proto = protocol
-                    break
+                # Attempts to resolve the protocol, and connect to the server.
+                host, port, tls = await proto.resolve(connection=connection, data=data)
+                await proto.connect(connection=connection, host=host, port=port, tls=tls, data=data)
             except protocol.InvalidProtocol:
-                pass
+                proto = None
 
         # Protocol was found, and we connected to a server.
-        if found and connection.server:
+        if proto and connection.server:
+
+            # Sets the connection protocol.
+            connection.protocol = proto
 
             # Calls middleware for server initial connect.
             for mw in self.middlewares:
                 await mw.server_connected(connection=connection)
 
-            # Keeps the connection alive until the client or server closes it.
-            run_once = True
-            while (
-                not connection.client.reader.at_eof()
-                and not connection.server.reader.at_eof()
-                and (self.keep_alive or run_once)
-            ):
+            # Handles the data between the client and server.
+            await proto.handle(connection=connection)
 
-                # Keeps trying to relay data until the connection closes.
-                event = asyncio.Event()
-                await asyncio.gather(
-                    _relay(connection, event, Flow.SERVER_TO_CLIENT),
-                    _relay(connection, event, Flow.CLIENT_TO_SERVER),
-                )
-
-                # Run the while loop only one iteration if keep_alive is False.
-                run_once = False
-        elif found and not connection.server:
+        # Protocol identified, but we did not connect to a server.
+        elif proto and not connection.server:
             raise ValueError(
-                "The protocol was found, but the server was not connected. "
+                "The protocol was found, but the server was not connected to succesfully. "
                 f"Check the {proto.__class__.__name__} implementation."
             )
 
-        # If a server connection exists, we close it.
+        # No protocol was found for the data.
+        else:
+            raise ValueError("No protocol was found. Check the protocols list.")
+
+        # If a server connection exists after handling it, we close it.
         if connection.server and connection.server.mitm_managed:
             connection.server.writer.close()
             await connection.server.writer.wait_closed()
@@ -215,9 +171,10 @@ class MITM(CoroutineClass):
         # happens when and if the client keeps the connection alive, and, unfortunately,
         # there is nothing we can do about it. This is a reported bug in asyncio.
         # https://bugs.python.org/issue39758
-        connection.client.writer.close()
-        await connection.client.writer.wait_closed()
+        if connection.client and connection.client.mitm_managed:
+            connection.client.writer.close()
+            await connection.client.writer.wait_closed()
 
-        # Calls the client 'disconnected' middleware.
-        for mw in self.middlewares:
-            await mw.client_disconnected(connection=connection)
+            # Calls the client 'disconnected' middleware.
+            for mw in self.middlewares:
+                await mw.client_disconnected(connection=connection)

@@ -2,10 +2,15 @@
 Core components of the MITM framework.
 """
 
+from __future__ import annotations
+
 import asyncio
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, List, Optional, Tuple
+
+from mitm.crypto import CertificateAuthority
 
 
 @dataclass
@@ -18,10 +23,13 @@ class Host:
     client, and a server. A client host is one that is connected to the `mitm`, and a
     server host is one that the `mitm` connected to on behalf of the client.
 
-    The `mitm_managed` attribute is used to determine whether the `mitm` should
-    manage the host. If `mitm_managed` is `True`, the `mitm` will close the host
-    when it is done with it. If `mitm_managed` is `False`, the `mitm` will not
-    close the host.
+    The `mitm_managed` attribute is used to determine whether the `mitm` is responsible
+    for closing the connection with the host. If `mitm_managed` is True, the `mitm` will
+    close the connection with the host when it is done with it. If `mitm_managed` is set
+    to False, the `mitm` will not close the connection with the host, and instead, the
+    developer must close the connection with the host manually. This is useful for
+    situations where the `mitm` is running as a seperate utility and the developer
+    wants to keep the connection open with the host after the `mitm` is done with it.
 
     Note:
         See more on `dataclasses <https://docs.python.org/3/library/dataclasses.html>`_.
@@ -31,7 +39,7 @@ class Host:
         writer: The writer of the host.
         mitm_managed: Whether or not the host is managed by the `mitm`.
 
-    Properties:
+    Attributes:
         reader: The reader of the host.
         writer: The writer of the host.
         mitm_managed: Whether or not the host is managed by the `mitm`.
@@ -61,12 +69,17 @@ class Host:
         if self.writer:
             self.host, self.port = self.writer._transport.get_extra_info("peername")
 
-    def __setattr__(self, name: str, value: Any) -> None:
+    def __setattr__(self, name: str, value: Any):
         """
         Sets Host attributes.
 
         We hijack this method to set the `host` and `port` attributes if/when the writer
-        is set.
+        is set. This is because the `host` and `port` attributes are not set until the
+        writer is set.
+
+        Args:
+            name: The name of the attribute to set.
+            value: The value of the attribute to set.
         """
         if (
             name == "writer"
@@ -77,17 +90,29 @@ class Host:
             self.host, self.port = value._transport.get_extra_info("peername")
         return super().__setattr__(name, value)
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
+        """
+        Returns whether or not the host is connected.
+        """
         return self.reader is not None and self.writer is not None
 
-    def __repr__(self):
-        if self.reader:
+    def __repr__(self) -> str:
+        """
+        Returns a string representation of the host.
+        """
+        if self.reader and self.writer:
             return f"Host({self.host}:{self.port}, mitm_managed={self.mitm_managed})"
         else:
             return f"Host(mitm_managed={self.mitm_managed})"
 
-    def __str__(self):
-        return f"{self.host}:{self.port}"
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the host.
+        """
+        if self.reader and self.writer:
+            return f"{self.host}:{self.port}"
+        else:
+            return "<empty host>"
 
 
 @dataclass
@@ -95,9 +120,9 @@ class Connection:
     """
     Dataclass representing a standard `mitm` connection.
 
-    A connection is a pair of `Host` objects that the `mitm` relays data between. When
-    a connection is created the server host is not resolved until the data is
-    intercepted and the destination server is figured out.
+    A connection is a pair of `Host` objects that the `mitm` relays data between. When a
+    connection is created the server host is not resolved until the data is intercepted
+    and the protocol and destination server is figured out.
 
     Note:
         See more on `dataclasses <https://docs.python.org/3/library/dataclasses.html>`_.
@@ -105,6 +130,7 @@ class Connection:
     Args:
         client: The client host.
         server: The server host.
+        protocol: The protocol of the connection.
 
     Example:
         .. code-block:: python
@@ -112,22 +138,23 @@ class Connection:
             client = Host(...)
             server = Host(...)
 
-            connection = Connection(client, server)
+            connection = Connection(client, server, Protocol.HTTP)
     """
 
     client: Host
     server: Host
+    protocol: Optional[Protocol] = None
 
-    def __repr__(self):
-        return f"<Connection client={self.client} server={self.server}>"
+    def __repr__(self) -> str:
+        return f"<Connection client={self.client} server={self.server}, protocol={self.protocol}>"
 
 
 class Flow(Enum):
     """
     Enum representing the flow of the connection.
 
-    Used within the :py:func:`mitm.MITM._relay` function to determine the flow of the
-    connection for middleware purposes.
+    Can be used within the appropriate locations to determine the flow of the
+    connection. Not used by the core `mitm` framework, but used by the HTTP extension.
 
     Args:
         CLIENT_TO_SERVER: The client is sending data to the server.
@@ -136,3 +163,184 @@ class Flow(Enum):
 
     CLIENT_TO_SERVER = 0
     SERVER_TO_CLIENT = 1
+
+
+class Middleware(ABC):
+    """
+    Event-driven hook extension for the `mitm`.
+
+    A middleware is a class that is used to extend the `mitm` framework by allowing
+    event-driven hooks to be added to the `mitm` and executed when the appropriate
+    event occurs. Built-in middlewares can be found in the `mitm.middleware` module.
+    """
+
+    @abstractmethod
+    async def mitm_started(self, host: str, port: int):
+        """
+        Called when the `mitm` server boots-up.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def client_connected(self, connection: Connection):
+        """
+        Called when the connection is established with the client.
+
+        Note:
+            Note that the `mitm.core.Connection` object is not fully initialized yet,
+            and only contains a valid client `mitm.core.Host`.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def server_connected(self, connection: Connection):
+        """
+        Called when the connection is established with the server.
+
+        Note:
+            At this point the `mitm.core.Connection` object is fully initialized.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def client_data(self, connection: Connection, data: bytes) -> bytes:
+        """
+        Called when data is received from the client.
+
+        Note:
+            Modifying the request will only modify the request sent to the destination
+            server, and not the first request mitm interprets. In other words, modifying
+            the 'Host' headers will not change the destination server.
+
+            Raw TLS/SSL handshake is not sent through this method. Everything should be
+            decrypted beforehand.
+
+        Args:
+            request: The request received from the client.
+
+        Returns:
+            The request to send to the server.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def server_data(self, connection: Connection, data: bytes) -> bytes:
+        """
+        Called when data is received from the server.
+
+        Args:
+            response: The response received from the server.
+
+        Returns:
+            The response to send back to the client.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def client_disconnected(self, connection: Connection):
+        """
+        Called when the client disconnects.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def server_disconnected(self, connection: Connection):
+        """
+        Called when the server disconnects.
+        """
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        return f"<Middleware: {self.__class__.__name__}>"
+
+
+class InvalidProtocol(Exception):
+    """
+    Exception raised when the protocol did not work.
+
+    This is the only error that `mitm.MITM` will catch. Throwing this error will
+    continue the search for a valid protocol.
+    """
+
+
+class Protocol(ABC):
+    """
+    Custom protocol implementation.
+
+    Protocols are implementations on how the data flows between the client and server.
+    Application-layer protocols are implemented by subclassing this class. Built-in
+    protocols can be found in the `mitm.extension` package.
+
+    Parameters:
+        bytes_needed: Minimum number of bytes needed to determine the protocol.
+        buffer_size: The size of the buffer to use when reading data.
+        timeout: The timeout to use when reading data.
+        keep_alive: Whether or not to keep the connection alive.
+    """
+
+    bytes_needed: int
+    buffer_size: int
+    timeout: int
+    keep_alive: bool
+
+    def __init__(
+        self,
+        certificate_authority: CertificateAuthority = CertificateAuthority(),
+        middlewares: List[Middleware] = [],
+    ):
+        """
+        Initializes the protocol.
+
+        Args:
+            certificate_authority: The certificate authority to use for the connection.
+            middlewares: The middlewares to use for the connection.
+        """
+        self.certificate_authority = certificate_authority
+        self.middlewares = middlewares
+
+    @abstractmethod
+    async def resolve(self, connection: Connection, data: bytes) -> Tuple[str, int, bool]:
+        """
+        Resolves the destination of the connection.
+
+        Args:
+            connection: Connection object containing a client host.
+            data: The initial incoming data from the client.
+
+        Returns:
+            A tuple containing the host, port, and bool that indicates if the connection 
+            is encrypted.
+
+        Raises:
+            InvalidProtocol: If the connection failed.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def connect(self, connection: Connection, host: str, port: int, tls: bool, data: bytes):
+        """
+        Attempts to connect to destination server using the given data. Returns `True`
+        if the connection was successful, raises `InvalidProtocol` if the connection
+        failed.
+
+        Args:
+            connection: Connection object containing a client host.
+            data: The initial incoming data from the client.
+
+        Raises:
+            InvalidProtocol: If the connection failed.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def handle(self, connection: Connection):
+        """
+        Handles the connection between a client and a server.
+
+        Args:
+            connection: Client/server connection to relay.
+        """
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        return f"<Protocol: {self.__class__.__name__}>"
