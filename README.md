@@ -42,7 +42,7 @@ mitm = MITM(
 mitm.run()
 ```
 
-This will start a proxy on port 8888 that is capable of intercepting all HTTP traffic (with support for SSL/TLS) and log all activity.
+This will start a proxy on port `8888` that is capable of intercepting all HTTP traffic (with support for SSL/TLS) and log all activity.
 
 ## Extensions
 

@@ -2,7 +2,7 @@
 Quickstart
 ##########
 
-A customizable man-in-the-middle TCP proxy with out-of-the-box support for HTTP & HTTPS.
+A customizable man-in-the-middle TCP proxy with support for HTTP & HTTPS.
 
 ----
 
@@ -28,14 +28,12 @@ Using the default values for the :py:class:`mitm.MITM` class:
         host="127.0.0.1",
         port=8888,
         protocols=[protocol.HTTP],
-        middlewares=[middleware.Log],
-        buffer_size=8192,
-        timeout=5,
-        keep_alive=True,
+        middlewares=[middleware.HTTPLog],
+        certificate_authority = crypto.CertificateAuthority()
     )
     mitm.run()
 
-This will start a proxy on port 8888 that is capable of intercepting all HTTP traffic (with support for `CONNECT`), and log all activity.
+This will start a proxy on port `8888` that is capable of intercepting all HTTP traffic (with support for SSL/TLS) and log all activity.
 
 Questions & Answers
 --------------------

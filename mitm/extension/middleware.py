@@ -13,7 +13,7 @@ logger = logging.getLogger(__package__)
 
 class Log(Middleware):
     """
-    Logging middleware.
+    Middleware that logs all events to the console.
     """
 
     def __init__(self):
@@ -54,7 +54,7 @@ class Log(Middleware):
 
 class HTTPLog(Log):
     """
-    Logging middleware specific for the HTTP protocol.
+    Middlewares that logs all HTTP events to the console with pretty-print.
     """
 
     def __init__(self):

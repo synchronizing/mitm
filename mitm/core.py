@@ -177,7 +177,7 @@ class Middleware(ABC):
     @abstractmethod
     async def mitm_started(self, host: str, port: int):
         """
-        Called when the mitm has started.
+        Called when the `mitm` server boots-up.
         """
         raise NotImplementedError
 
@@ -185,6 +185,10 @@ class Middleware(ABC):
     async def client_connected(self, connection: Connection):
         """
         Called when the connection is established with the client.
+
+        Note:
+            Note that the `mitm.core.Connection` object is not fully initialized yet,
+            and only contains a valid client `mitm.core.Host`.
         """
         raise NotImplementedError
 
@@ -192,6 +196,9 @@ class Middleware(ABC):
     async def server_connected(self, connection: Connection):
         """
         Called when the connection is established with the server.
+
+        Note:
+            At this point the `mitm.core.Connection` object is fully initialized.
         """
         raise NotImplementedError
 
@@ -301,7 +308,8 @@ class Protocol(ABC):
             data: The initial incoming data from the client.
 
         Returns:
-            A tuple containing the host, port, and bool if the connection is encrypted.
+            A tuple containing the host, port, and bool that indicates if the connection 
+            is encrypted.
 
         Raises:
             InvalidProtocol: If the connection failed.

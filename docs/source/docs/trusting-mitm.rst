@@ -30,7 +30,7 @@ To customize the path where the certificate is generated, you can use the follow
 
     # Loads the CA certificate.
     path = Path("/Users/felipe/Desktop")
-    ca = CertificateAuthority.init(path=path)
+    certificate_authority = CertificateAuthority.init(path=path)
 
     # Starts the MITM server.
     mitm = MITM(
@@ -38,9 +38,7 @@ To customize the path where the certificate is generated, you can use the follow
         port=8888,
         protocols=[protocol.HTTP],
         middlewares=[middleware.Log],
-        buffer_size=8192,
-        timeout=5,
-        ca=ca,
+        certificate_authority=certificate_authority,
     )
     mitm.run()
 
