@@ -4,7 +4,6 @@ Cryptography functionalities.
 
 import random
 import ssl
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
@@ -125,7 +124,6 @@ class CertificateAuthority:
 
         return ca
 
-    @lru_cache
     def new_X509(self, host: str) -> Tuple[OpenSSL.crypto.X509, OpenSSL.crypto.PKey]:
         """
         Generates a new certificate for the host.
@@ -208,7 +206,6 @@ class CertificateAuthority:
         return cls(key, cert)
 
 
-@lru_cache
 def new_ssl_context(X509: OpenSSL.crypto.X509, PKey: OpenSSL.crypto.PKey) -> ssl.SSLContext:
     """
     Generates a new SSLContext with the given X509 certificate and private key.
