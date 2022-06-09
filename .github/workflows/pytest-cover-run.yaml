@@ -1,0 +1,40 @@
+# Pytest + Coveralls
+name: Build
+
+on: 
+  push:
+    tags:
+      - '*'
+    branches:
+      - master
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8, 3.9, "3.10"]
+    steps:
+    - name: Checks repo out
+      uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install testing depedencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .
+        pip install -r tests/requirements.txt
+    - name: Run PyTest
+      run: |
+        pytest --cov=toolbox tests/
+    - name: Run Coveralls
+      env:
+        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        coveralls
