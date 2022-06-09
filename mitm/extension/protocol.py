@@ -47,7 +47,7 @@ class HTTP(Protocol):
         """
         try:
             request = Request.parse(data)
-        except:
+        except:  # pragma: no cover
             raise InvalidProtocol
 
         # Deal with 'CONNECT'.
@@ -67,6 +67,10 @@ class HTTP(Protocol):
             if "Host" not in request.headers:
                 raise InvalidProtocol
             host, port = request.headers.get("Host").string, 80
+
+        # Unable to parse the request.
+        elif not request.method:
+            raise InvalidProtocol
 
         return host, int(port), tls
 

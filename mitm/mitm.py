@@ -77,7 +77,7 @@ class MITM(CoroutineClass):
 
         super().__init__(run=run)
 
-    async def entry(self):
+    async def entry(self):  # pragma: no cover
         """
         Entry point for the MITM class.
         """
@@ -130,8 +130,8 @@ class MITM(CoroutineClass):
                 # Attempts to resolve the protocol, and connect to the server.
                 host, port, tls = await proto.resolve(connection=connection, data=data)
                 await proto.connect(connection=connection, host=host, port=port, tls=tls, data=data)
-            except protocol.InvalidProtocol:
-                proto = None
+            except protocol.InvalidProtocol: # pragma: no cover
+                proto = None 
 
         # Protocol was found, and we connected to a server.
         if proto and connection.server:
@@ -147,14 +147,14 @@ class MITM(CoroutineClass):
             await proto.handle(connection=connection)
 
         # Protocol identified, but we did not connect to a server.
-        elif proto and not connection.server:
+        elif proto and not connection.server: # pragma: no cover
             raise ValueError(
                 "The protocol was found, but the server was not connected to succesfully. "
                 f"Check the {proto.__class__.__name__} implementation."
             )
 
         # No protocol was found for the data.
-        else:
+        else: # pragma: no cover
             raise ValueError("No protocol was found. Check the protocols list.")
 
         # If a server connection exists after handling it, we close it.
