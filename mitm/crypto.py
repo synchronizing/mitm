@@ -2,6 +2,7 @@
 Cryptography functionalities.
 """
 
+from functools import lru_cache
 import random
 import ssl
 from pathlib import Path
@@ -11,6 +12,33 @@ import OpenSSL
 from toolbox.sockets.ip import is_ip
 
 from mitm import __data__
+
+LRU_MAX_SIZE = 1024
+"""
+Max size of the LRU cache used by `CertificateAuthority.new_context()` method. Defaults
+to 1024.
+
+Due to limitations of the Python's SSL module we are unable to load certificates/keys
+from memory; on every request we must dump the generated cert/key to disk and pass the
+paths `ssl.SSLContext.load_cert_chain()` method. For a few requests this is not an
+issue, but for a large quantity of requests this is a significant performance hit.
+
+To mitigate this issue we cache the generated SSLContext using
+`lru_cache <https://docs.python.org/3/library/functools.html#functools.lru_cache>`_.
+`LRU_MAX_SIZE` defines the maximum number of cached `ssl.SSLContexts` that can be stored
+in memory at one time. This value can be modified by editing it _before_
+`CertificateAuthority` is used elsewhere.
+
+    .. code-block:: python
+
+        from mitm import MITM, CertificateAuthority, middleware, protocol, crypto
+        from pathlib import Path
+
+        # Updates the maximum size of the LRU cache.
+        crypto.LRU_MAX_SIZE = 2048
+
+        # Rest of the code goes here.
+"""  # pylint: disable=W0105
 
 
 def new_RSA(bits: int = 2048) -> OpenSSL.crypto.PKey:
@@ -112,7 +140,7 @@ class CertificateAuthority:
         Helper init method to initialize or load a CA.
 
         Args:
-            folder: The folder to initialize.
+            path: The path where `mitm.pem` and `mitm.key` are to be loaded/saved.
         """
 
         pem, key = path / "mitm.pem", path / "mitm.key"
@@ -168,6 +196,52 @@ class CertificateAuthority:
 
         return cert, key
 
+    @lru_cache(maxsize=LRU_MAX_SIZE)
+    def new_context(self, host: str) -> ssl.SSLContext:
+        """
+        Generates a new SSLContext with the given X509 certificate and private key.
+
+        Args:
+            X509: X509 certificate.
+            PKey: Private key.
+
+        Returns:
+            The SSLContext with the certificate loaded.
+        """
+
+        # Generates cert/key for the host.
+        X509, PKey = self.new_X509(host)
+
+        # Dump the cert and key.
+        cert_dump = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, X509)
+        key_dump = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, PKey)
+
+        # Store cert and key into file. Unfortunately we need to store them in disk
+        # because SSLContext does not support loading from memory. This is a limitation
+        # of the Python standard library, and the community: https://bugs.python.org/issue16487
+        # Alternatives cannot be used for this because this context is eventually used
+        # by asyncio.get_event_loop().start_tls(..., sslcontext=..., ...) parameter,
+        # which only support ssl.SSLContext. To mitigate this we use lru_cache to
+        # cache the SSLContext for each host. It works fairly well, but its not the
+        # preferred way to do it... loading from memory would be better.
+        cert_path, key_path = __data__ / "temp.crt", __data__ / "temp.key"
+        cert_path.parent.mkdir(parents=True, exist_ok=True)
+        with cert_path.open("wb") as f:
+            f.write(cert_dump)
+        key_path.parent.mkdir(parents=True, exist_ok=True)
+        with key_path.open("wb") as f:
+            f.write(key_dump)
+
+        # Creates new SSLContext.
+        context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+        context.load_cert_chain(certfile=cert_path, keyfile=key_path)
+
+        # Remove the temporary files.
+        cert_path.unlink()
+        key_path.unlink()
+
+        return context
+
     def save(self, cert_path: Union[Path, str], key_path: Union[Path, str]):
         """
         Saves the certificate authority and its private key to disk.
@@ -204,44 +278,3 @@ class CertificateAuthority:
             key = OpenSSL.crypto.load_privatekey(OpenSSL.crypto.FILETYPE_PEM, f.read())
 
         return cls(key, cert)
-
-
-def new_ssl_context(X509: OpenSSL.crypto.X509, PKey: OpenSSL.crypto.PKey) -> ssl.SSLContext:
-    """
-    Generates a new SSLContext with the given X509 certificate and private key.
-
-    Args:
-        X509: X509 certificate.
-        PKey: Private key.
-
-    Returns:
-        The SSLContext with the certificate loaded.
-    """
-
-    # Dump the cert and key.
-    cert_dump = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, X509)
-    key_dump = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, PKey)
-
-    # Store cert and key into file. Unfortunately we need to store them in disk because
-    # SSLContext does not support loading from memory. This is a limitation of the
-    # Python standard library, and the community: https://bugs.python.org/issue16487
-    # Alternatives cannot be used for this because this context is eventually used by
-    # asyncio.get_event_loop().start_tls(..., sslcontext=..., ...) parameter, which
-    # only support ssl.SSLContext.
-    cert_path, key_path = __data__ / "temp.crt", __data__ / "temp.key"
-    cert_path.parent.mkdir(parents=True, exist_ok=True)
-    with cert_path.open("wb") as f:
-        f.write(cert_dump)
-    key_path.parent.mkdir(parents=True, exist_ok=True)
-    with key_path.open("wb") as f:
-        f.write(key_dump)
-
-    # Creates new SSLContext.
-    context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-    context.load_cert_chain(certfile=cert_path, keyfile=key_path)
-
-    # Remove the temporary files.
-    cert_path.unlink()
-    key_path.unlink()
-
-    return context

@@ -285,7 +285,7 @@ class Protocol(ABC):  # pragma: no cover
 
     def __init__(
         self,
-        certificate_authority: CertificateAuthority = CertificateAuthority(),
+        certificate_authority: Optional[CertificateAuthority] = None,
         middlewares: List[Middleware] = [],
     ):
         """
@@ -295,7 +295,7 @@ class Protocol(ABC):  # pragma: no cover
             certificate_authority: The certificate authority to use for the connection.
             middlewares: The middlewares to use for the connection.
         """
-        self.certificate_authority = certificate_authority
+        self.certificate_authority = certificate_authority if certificate_authority else CertificateAuthority()
         self.middlewares = middlewares
 
     @abstractmethod

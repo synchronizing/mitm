@@ -66,13 +66,11 @@ class Test_CertificateAuthority:
             assert isinstance(cert.get_pubkey(), OpenSSL.crypto.PKey)
             assert isinstance(key, OpenSSL.crypto.PKey)
 
+    def test_new_context(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            ca = crypto.CertificateAuthority.init(path)
 
-def test_new_ssl_context():
-    with tempfile.TemporaryDirectory() as directory:
-        path = Path(directory)
-        ca = crypto.CertificateAuthority.init(path)
-        cert, key = ca.new_X509("example.com")
-
-        # Creates a new SSL context.
-        context = crypto.new_ssl_context(cert, key)
-        assert isinstance(context, ssl.SSLContext)
+            # Creates a new SSL context.
+            context = ca.new_context("example.com")
+            assert isinstance(context, ssl.SSLContext)
