@@ -36,7 +36,7 @@ class Log(Middleware):
             logger.info(f"Client {connection.client} to mitm: \n\n\t{data}\n")
 
         # All requests thereafter are intended for the destination server.
-        else:
+        else:  # pragma: no cover
             logger.info(f"Client {connection.client} to {connection.server}: \n\n\t{data}\n")
 
         return data
@@ -52,7 +52,7 @@ class Log(Middleware):
         logger.info(f"Server {connection.server} has disconnected.")
 
 
-class HTTPLog(Log):
+class HTTPLog(Log):  # pragma: no cover
     """
     Middlewares that logs all HTTP events to the console with pretty-print.
     """

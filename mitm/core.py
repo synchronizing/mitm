@@ -96,7 +96,7 @@ class Host:
         """
         return self.reader is not None and self.writer is not None
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover
         """
         Returns a string representation of the host.
         """
@@ -105,7 +105,7 @@ class Host:
         else:
             return f"Host(mitm_managed={self.mitm_managed})"
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pragma: no cover
         """
         Returns a string representation of the host.
         """
@@ -145,8 +145,8 @@ class Connection:
     server: Host
     protocol: Optional[Protocol] = None
 
-    def __repr__(self) -> str:
-        return f"<Connection client={self.client} server={self.server}, protocol={self.protocol}>"
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"Connection(client={self.client}, server={self.server}, protocol={self.protocol})"
 
 
 class Flow(Enum):
@@ -165,7 +165,7 @@ class Flow(Enum):
     SERVER_TO_CLIENT = 1
 
 
-class Middleware(ABC):
+class Middleware(ABC):  # pragma: no cover
     """
     Event-driven hook extension for the `mitm`.
 
@@ -250,11 +250,11 @@ class Middleware(ABC):
         """
         raise NotImplementedError
 
-    def __repr__(self) -> str:
-        return f"<Middleware: {self.__class__.__name__}>"
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"Middleware({self.__class__.__name__})"
 
 
-class InvalidProtocol(Exception):
+class InvalidProtocol(Exception):  # pragma: no cover
     """
     Exception raised when the protocol did not work.
 
@@ -263,7 +263,7 @@ class InvalidProtocol(Exception):
     """
 
 
-class Protocol(ABC):
+class Protocol(ABC):  # pragma: no cover
     """
     Custom protocol implementation.
 
@@ -308,7 +308,7 @@ class Protocol(ABC):
             data: The initial incoming data from the client.
 
         Returns:
-            A tuple containing the host, port, and bool that indicates if the connection 
+            A tuple containing the host, port, and bool that indicates if the connection
             is encrypted.
 
         Raises:
@@ -342,5 +342,5 @@ class Protocol(ABC):
         """
         raise NotImplementedError
 
-    def __repr__(self) -> str:
-        return f"<Protocol: {self.__class__.__name__}>"
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"Protocol({self.__class__.__name__})"
