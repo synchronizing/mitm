@@ -4,7 +4,7 @@ Man-in-the-middle.
 
 import asyncio
 import logging
-from typing import List
+from typing import List, Optional
 
 from toolbox.asyncio.pattern import CoroutineClass
 
@@ -28,7 +28,7 @@ class MITM(CoroutineClass):
         port: int = 8888,
         protocols: List[protocol.Protocol] = [protocol.HTTP],
         middlewares: List[middleware.Middleware] = [middleware.Log],
-        certificate_authority: CertificateAuthority = CertificateAuthority(),
+        certificate_authority: Optional[CertificateAuthority] = None,
         run: bool = False,
     ):
         """
@@ -53,7 +53,7 @@ class MITM(CoroutineClass):
         """
         self.host = host
         self.port = port
-        self.certificate_authority = certificate_authority
+        self.certificate_authority = certificate_authority if certificate_authority else CertificateAuthority()
 
         # Stores the CA certificate and private key.
         cert_path, key_path = __data__ / "mitm.crt", __data__ / "mitm.key"
@@ -130,8 +130,8 @@ class MITM(CoroutineClass):
                 # Attempts to resolve the protocol, and connect to the server.
                 host, port, tls = await proto.resolve(connection=connection, data=data)
                 await proto.connect(connection=connection, host=host, port=port, tls=tls, data=data)
-            except protocol.InvalidProtocol: # pragma: no cover
-                proto = None 
+            except protocol.InvalidProtocol:  # pragma: no cover
+                proto = None
 
         # Protocol was found, and we connected to a server.
         if proto and connection.server:
@@ -147,14 +147,14 @@ class MITM(CoroutineClass):
             await proto.handle(connection=connection)
 
         # Protocol identified, but we did not connect to a server.
-        elif proto and not connection.server: # pragma: no cover
+        elif proto and not connection.server:  # pragma: no cover
             raise ValueError(
                 "The protocol was found, but the server was not connected to succesfully. "
                 f"Check the {proto.__class__.__name__} implementation."
             )
 
         # No protocol was found for the data.
-        else: # pragma: no cover
+        else:  # pragma: no cover
             raise ValueError("No protocol was found. Check the protocols list.")
 
         # If a server connection exists after handling it, we close it.

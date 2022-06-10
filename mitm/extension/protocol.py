@@ -9,7 +9,6 @@ from httpq import Request
 from toolbox.asyncio.streams import tls_handshake
 
 from mitm.core import Connection, Flow, Host, InvalidProtocol, Protocol
-from mitm.crypto import new_ssl_context
 
 
 class HTTP(Protocol):
@@ -93,9 +92,8 @@ class HTTP(Protocol):
             connection.client.writer.write(b"HTTP/1.1 200 OK\r\n\r\n")
             await connection.client.writer.drain()
 
-            # Creates a copy of the destination server X509 certificate.
-            cert, key = self.certificate_authority.new_X509(host)
-            ssl_context = new_ssl_context(cert, key)
+            # Generates new context specific to the host.
+            ssl_context = self.certificate_authority.new_context(host)
 
             # Perform handshake.
             try:
