@@ -43,8 +43,8 @@ from mitm import MITM, protocol, middleware, crypto
 mitm = MITM(
     host="127.0.0.1",
     port=8888,
-    protocols=[protocol.HTTP],
-    middlewares=[middleware.HTTPLog],
+    protocols=[protocol.HTTP], 
+    middlewares=[middleware.Log], # middleware.HTTPLog used for the example below.
     certificate_authority = crypto.CertificateAuthority()
 )
 mitm.run()
