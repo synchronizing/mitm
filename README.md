@@ -2,8 +2,16 @@
 
 <p align="center">
 
-<a href="https://synchronizing.github.io/mitm/">
+  <a href="https://github.com/synchronizing/mitm/actions?query=workflow%3ABuild">
+    <img src="https://github.com/synchronizing/mitm/workflows/Build/badge.svg?branch=master&event=push">
+  </a>
+
+  <a href="https://synchronizing.github.io/mitm/">
     <img src="https://github.com/synchronizing/mitm/actions/workflows/docs-publish.yaml/badge.svg">
+  </a>
+
+  <a href="https://coveralls.io/github/synchronizing/mitm?branch=master">
+    <img src="https://coveralls.io/repos/github/synchronizing/mitm/badge.svg?branch=master">
   </a>
 
   <a href="https://opensource.org/licenses/MIT">
