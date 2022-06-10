@@ -31,7 +31,7 @@ jobs:
         pip install -r tests/requirements.txt
     - name: Run PyTest
       run: |
-        pytest --cov=toolbox tests/
+        pytest --cov=mitm tests/
     - name: Run Coveralls
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
