@@ -9,9 +9,10 @@ from typing import List, Optional
 from toolbox.asyncio.pattern import CoroutineClass
 
 from mitm import __data__
-from mitm.core import Connection, Host
+from mitm.core import Connection, Host, Middleware, Protocol
 from mitm.crypto import CertificateAuthority
-from mitm.extension import middleware, protocol
+from mitm.extension.middleware import Log
+from mitm.extension.protocol import HTTP, InvalidProtocol
 
 logger = logging.getLogger(__package__)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
@@ -26,8 +27,8 @@ class MITM(CoroutineClass):
         self,
         host: str = "127.0.0.1",
         port: int = 8888,
-        protocols: List[protocol.Protocol] = [protocol.HTTP],
-        middlewares: List[middleware.Middleware] = [middleware.Log],
+        protocols: Optional[List[Protocol]] = None,
+        middlewares: Optional[List[Middleware]] = None,
         certificate_authority: Optional[CertificateAuthority] = None,
         run: bool = False,
     ):
@@ -60,6 +61,7 @@ class MITM(CoroutineClass):
         self.certificate_authority.save(cert_path=cert_path, key_path=key_path)
 
         # Initialize any middleware that is not already initialized.
+        middlewares = middlewares if middlewares else [Log]
         new_middlewares = []
         for middleware in middlewares:
             if isinstance(middleware, type):
@@ -68,6 +70,7 @@ class MITM(CoroutineClass):
         self.middlewares = new_middlewares
 
         # Initialize any protocol that is not already initialized.
+        protocols = protocols if protocols else [HTTP]
         new_protocols = []
         for protocol in protocols:
             if isinstance(protocol, type):
@@ -92,12 +95,12 @@ class MITM(CoroutineClass):
                 host=self.host,
                 port=self.port,
             )
-        except OSError as e:
+        except OSError as err:
             self._loop.stop()
-            raise e
+            raise err
 
-        for mw in self.middlewares:
-            await mw.mitm_started(host=self.host, port=self.port)
+        for middleware in self.middlewares:
+            await middleware.mitm_started(host=self.host, port=self.port)
 
         async with server:
             await server.serve_forever()
@@ -111,16 +114,16 @@ class MITM(CoroutineClass):
         """
 
         #  Calls middlewares for client initial connect.
-        for mw in self.middlewares:
-            await mw.client_connected(connection=connection)
+        for middleware in self.middlewares:
+            await middleware.client_connected(connection=connection)
 
         # Gets the bytes needed to identify the protocol.
         min_bytes_needed = max(proto.bytes_needed for proto in self.protocols)
         data = await connection.client.reader.read(n=min_bytes_needed)
 
         # Calls middleware on client's data.
-        for mw in self.middlewares:
-            await mw.client_data(connection=connection, data=data)
+        for middleware in self.middlewares:
+            await middleware.client_data(connection=connection, data=data)
 
         # Finds the protocol that matches the data.
         proto = None
@@ -130,7 +133,7 @@ class MITM(CoroutineClass):
                 # Attempts to resolve the protocol, and connect to the server.
                 host, port, tls = await proto.resolve(connection=connection, data=data)
                 await proto.connect(connection=connection, host=host, port=port, tls=tls, data=data)
-            except protocol.InvalidProtocol:  # pragma: no cover
+            except InvalidProtocol:  # pragma: no cover
                 proto = None
 
         # Protocol was found, and we connected to a server.
@@ -140,8 +143,8 @@ class MITM(CoroutineClass):
             connection.protocol = proto
 
             # Calls middleware for server initial connect.
-            for mw in self.middlewares:
-                await mw.server_connected(connection=connection)
+            for middleware in self.middlewares:
+                await middleware.server_connected(connection=connection)
 
             # Handles the data between the client and server.
             await proto.handle(connection=connection)
@@ -163,8 +166,8 @@ class MITM(CoroutineClass):
             await connection.server.writer.wait_closed()
 
             # Calls the server's 'disconnected' middleware.
-            for mw in self.middlewares:
-                await mw.server_disconnected(connection=connection)
+            for middleware in self.middlewares:
+                await middleware.server_disconnected(connection=connection)
 
         # Attempts to disconnect with the client.
         # In some instances 'wait_closed()' might hang. This is a known issue that
@@ -176,5 +179,5 @@ class MITM(CoroutineClass):
             await connection.client.writer.wait_closed()
 
             # Calls the client 'disconnected' middleware.
-            for mw in self.middlewares:
-                await mw.client_disconnected(connection=connection)
+            for middleware in self.middlewares:
+                await middleware.client_disconnected(connection=connection)

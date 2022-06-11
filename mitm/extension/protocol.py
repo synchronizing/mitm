@@ -47,7 +47,7 @@ class HTTP(Protocol):
         try:
             request = Request.parse(data)
         except:  # pragma: no cover
-            raise InvalidProtocol
+            raise InvalidProtocol  # pylint: disable=raise-missing-from
 
         # Deal with 'CONNECT'.
         tls = False
@@ -181,11 +181,11 @@ class HTTP(Protocol):
             else:
 
                 # Pass data through middlewares.
-                for mw in self.middlewares:
+                for middleware in self.middlewares:
                     if flow == Flow.SERVER_TO_CLIENT:
-                        data = await mw.server_data(connection, data)
+                        data = await middleware.server_data(connection, data)
                     elif flow == Flow.CLIENT_TO_SERVER:
-                        data = await mw.client_data(connection, data)
+                        data = await middleware.client_data(connection, data)
 
                 writer.write(data)
                 await writer.drain()
