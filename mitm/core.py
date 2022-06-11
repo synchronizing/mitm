@@ -67,7 +67,7 @@ class Host:
 
         # At this point the self.writer is either None or a StreamWriter.
         if self.writer:
-            self.host, self.port = self.writer._transport.get_extra_info("peername")
+            self.host, self.port = self.writer._transport.get_extra_info("peername")  # pylint: disable=protected-access
 
     def __setattr__(self, name: str, value: Any):
         """
@@ -102,8 +102,8 @@ class Host:
         """
         if self.reader and self.writer:
             return f"Host({self.host}:{self.port}, mitm_managed={self.mitm_managed})"
-        else:
-            return f"Host(mitm_managed={self.mitm_managed})"
+
+        return f"Host(mitm_managed={self.mitm_managed})"
 
     def __str__(self) -> str:  # pragma: no cover
         """
@@ -111,8 +111,8 @@ class Host:
         """
         if self.reader and self.writer:
             return f"{self.host}:{self.port}"
-        else:
-            return "<empty host>"
+
+        return "<empty host>"
 
 
 @dataclass
@@ -286,7 +286,7 @@ class Protocol(ABC):  # pragma: no cover
     def __init__(
         self,
         certificate_authority: Optional[CertificateAuthority] = None,
-        middlewares: List[Middleware] = [],
+        middlewares: Optional[List[Middleware]] = None,
     ):
         """
         Initializes the protocol.
@@ -296,7 +296,7 @@ class Protocol(ABC):  # pragma: no cover
             middlewares: The middlewares to use for the connection.
         """
         self.certificate_authority = certificate_authority if certificate_authority else CertificateAuthority()
-        self.middlewares = middlewares
+        self.middlewares = middlewares if middlewares else []
 
     @abstractmethod
     async def resolve(self, connection: Connection, data: bytes) -> Tuple[str, int, bool]:

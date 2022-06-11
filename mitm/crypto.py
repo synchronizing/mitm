@@ -38,10 +38,10 @@ in memory at one time. This value can be modified by editing it _before_
         crypto.LRU_MAX_SIZE = 2048
 
         # Rest of the code goes here.
-"""  # pylint: disable=W0105
+"""
 
 
-def new_RSA(bits: int = 2048) -> OpenSSL.crypto.PKey:
+def new_RSA(bits: int = 2048) -> OpenSSL.crypto.PKey:  # pylint: disable=invalid-name
     """
     Generates an RSA pair.
 
@@ -58,14 +58,14 @@ def new_RSA(bits: int = 2048) -> OpenSSL.crypto.PKey:
     return rsa
 
 
-def new_X509(
+def new_X509(  # pylint: disable=invalid-name
     country_name: str = "US",
     state_or_province_name: str = "New York",
     locality: str = "New York",
     organization_name: str = "mitm",
     organization_unit_name: str = "mitm",
     common_name: str = "mitm",
-    serial_number: int = random.randint(0, 2 ** 64 - 1),
+    serial_number: int = random.randint(0, 2**64 - 1),
     time_not_before: int = 0,  # 0 means now.
     time_not_after: int = 1 * (365 * 24 * 60 * 60),  # 1 year.
 ) -> OpenSSL.crypto.X509:
@@ -145,14 +145,14 @@ class CertificateAuthority:
 
         pem, key = path / "mitm.pem", path / "mitm.key"
         if not pem.exists() or not key.exists():
-            ca = CertificateAuthority()
-            ca.save(cert_path=pem, key_path=key)
+            certificate_authority = CertificateAuthority()
+            certificate_authority.save(cert_path=pem, key_path=key)
         else:
-            ca = CertificateAuthority.load(cert_path=pem, key_path=key)
+            certificate_authority = CertificateAuthority.load(cert_path=pem, key_path=key)
 
-        return ca
+        return certificate_authority
 
-    def new_X509(self, host: str) -> Tuple[OpenSSL.crypto.X509, OpenSSL.crypto.PKey]:
+    def new_X509(self, host: str) -> Tuple[OpenSSL.crypto.X509, OpenSSL.crypto.PKey]:  # pylint: disable=invalid-name
         """
         Generates a new certificate for the host.
 
@@ -210,11 +210,11 @@ class CertificateAuthority:
         """
 
         # Generates cert/key for the host.
-        X509, PKey = self.new_X509(host)
+        cert, key = self.new_X509(host)
 
         # Dump the cert and key.
-        cert_dump = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, X509)
-        key_dump = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, PKey)
+        cert_dump = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
+        key_dump = OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, key)
 
         # Store cert and key into file. Unfortunately we need to store them in disk
         # because SSLContext does not support loading from memory. This is a limitation
@@ -226,11 +226,11 @@ class CertificateAuthority:
         # preferred way to do it... loading from memory would be better.
         cert_path, key_path = __data__ / "temp.crt", __data__ / "temp.key"
         cert_path.parent.mkdir(parents=True, exist_ok=True)
-        with cert_path.open("wb") as f:
-            f.write(cert_dump)
+        with cert_path.open("wb") as file:
+            file.write(cert_dump)
         key_path.parent.mkdir(parents=True, exist_ok=True)
-        with key_path.open("wb") as f:
-            f.write(key_dump)
+        with key_path.open("wb") as file:
+            file.write(key_dump)
 
         # Creates new SSLContext.
         context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
@@ -253,12 +253,12 @@ class CertificateAuthority:
         cert_path, key_path = Path(cert_path), Path(key_path)
 
         cert_path.parent.mkdir(parents=True, exist_ok=True)
-        with cert_path.open("wb") as f:
-            f.write(OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, self.cert))
+        with cert_path.open("wb") as file:
+            file.write(OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, self.cert))
 
         key_path.parent.mkdir(parents=True, exist_ok=True)
-        with key_path.open("wb") as f:
-            f.write(OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, self.key))
+        with key_path.open("wb") as file:
+            file.write(OpenSSL.crypto.dump_privatekey(OpenSSL.crypto.FILETYPE_PEM, self.key))
 
     @classmethod
     def load(cls, cert_path: Union[Path, str], key_path: Union[Path, str]) -> "CertificateAuthority":
@@ -271,10 +271,10 @@ class CertificateAuthority:
         """
         cert_path, key_path = Path(cert_path), Path(key_path)
 
-        with cert_path.open("rb") as f:
-            cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, f.read())
+        with cert_path.open("rb") as file:
+            cert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, file.read())
 
-        with key_path.open("rb") as f:
-            key = OpenSSL.crypto.load_privatekey(OpenSSL.crypto.FILETYPE_PEM, f.read())
+        with key_path.open("rb") as file:
+            key = OpenSSL.crypto.load_privatekey(OpenSSL.crypto.FILETYPE_PEM, file.read())
 
         return cls(key, cert)

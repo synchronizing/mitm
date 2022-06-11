@@ -5,8 +5,8 @@ Custom middlware implementation for the MITM proxy.
 import logging
 
 import httpq
-from mitm.core import Connection, Middleware
 from toolbox.string.color import bold
+from mitm.core import Connection, Middleware
 
 logger = logging.getLogger(__package__)
 
@@ -63,7 +63,7 @@ class HTTPLog(Log):  # pragma: no cover
         settings to `mitm` you should not use this middleware as things will not work.
     """
 
-    def __init__(self):
+    def __init__(self):  # pylint: disable=super-init-not-called
         self.connection: Connection = None
 
     async def client_data(self, connection: Connection, data: bytes) -> bytes:

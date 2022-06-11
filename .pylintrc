@@ -1,2 +1,5 @@
+[MESSAGES CONTROL]
+disable = logging-fstring-interpolation, too-many-arguments, cyclic-import
+
 [FORMAT]
 max-line-length = 120

@@ -178,14 +178,13 @@ class HTTP(Protocol):
             if not data:
                 event.set()
                 break
-            else:
 
-                # Pass data through middlewares.
-                for middleware in self.middlewares:
-                    if flow == Flow.SERVER_TO_CLIENT:
-                        data = await middleware.server_data(connection, data)
-                    elif flow == Flow.CLIENT_TO_SERVER:
-                        data = await middleware.client_data(connection, data)
+            # Pass data through middlewares.
+            for middleware in self.middlewares:
+                if flow == Flow.SERVER_TO_CLIENT:
+                    data = await middleware.server_data(connection, data)
+                elif flow == Flow.CLIENT_TO_SERVER:
+                    data = await middleware.client_data(connection, data)
 
-                writer.write(data)
-                await writer.drain()
+            writer.write(data)
+            await writer.drain()
