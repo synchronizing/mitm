@@ -1,3 +1,10 @@
+"""
+Github: https://github.com/synchronizing/mitm
+Docs: https://synchronizing.github.io/mitm/
+"""
+
+# pylint: disable=wrong-import-order, wrong-import-position
+
 __author__ = "Felipe Faria"
 __project__ = "mitm"
 
