@@ -59,9 +59,8 @@ class HTTPLog(Log):  # pragma: no cover
     Notes:
         Do not use this middleware if there is a chance that the request or response
         will not be HTTP. This should only be used if you have control of all the
-        requests coming into the proxy. In other words, if you are setting your
-        computer's proxy settings to `mitm` you should not use this middleware as
-        things will not work.
+        requests coming into the proxy. If you are setting your computer's proxy
+        settings to `mitm` you should not use this middleware as things will not work.
     """
 
     def __init__(self):

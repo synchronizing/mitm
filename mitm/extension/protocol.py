@@ -79,6 +79,9 @@ class HTTP(Protocol):
 
         Args:
             connection: The connection to the destination server.
+            host: The hostname of the destination server.
+            port: The port of the destination server.
+            tls: Whether the connection is encrypted.
             data: The initial data received from the client.
 
         Raises:
@@ -148,6 +151,11 @@ class HTTP(Protocol):
     async def relay(self, connection: Connection, event: asyncio.Event, flow: Flow):
         """
         Relays HTTP data between the client and the server.
+
+        Args:
+            connection: Client/server connection to relay.
+            event: Event to wait on.
+            flow: The flow to relay.
         """
 
         if flow == Flow.CLIENT_TO_SERVER:
