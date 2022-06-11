@@ -1,3 +1,4 @@
+pbr==5.9.0
 PyOpenSSL==22.0.0
 appdirs==1.4.4
 httpq==1.1.2
