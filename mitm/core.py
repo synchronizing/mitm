@@ -208,10 +208,6 @@ class Middleware(ABC):  # pragma: no cover
         Called when data is received from the client.
 
         Note:
-            Modifying the request will only modify the request sent to the destination
-            server, and not the first request mitm interprets. In other words, modifying
-            the 'Host' headers will not change the destination server.
-
             Raw TLS/SSL handshake is not sent through this method. Everything should be
             decrypted beforehand.
 

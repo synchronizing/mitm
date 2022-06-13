@@ -123,7 +123,7 @@ class MITM(CoroutineClass):
 
         # Calls middleware on client's data.
         for middleware in self.middlewares:
-            await middleware.client_data(connection=connection, data=data)
+            data = await middleware.client_data(connection=connection, data=data)
 
         # Finds the protocol that matches the data.
         proto = None

@@ -103,8 +103,6 @@ Extensions
     .. method:: client_data(connection: Connection, data: bytes) -> bytes
         :async:
         :staticmethod:
-
-        Modifying the request will only modify the request sent to the destination server, and not the first request `mitm`` interprets. In other words, modifying the 'Host' headers will not change the destination server.
         
         Raw TLS/SSL handshake is not sent through this method. Everything should be decrypted beforehand.
 
