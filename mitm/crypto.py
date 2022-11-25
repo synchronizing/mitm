@@ -65,7 +65,7 @@ def new_X509(  # pylint: disable=invalid-name
     organization_name: str = "mitm",
     organization_unit_name: str = "mitm",
     common_name: str = "mitm",
-    serial_number: int = random.randint(0, 2**64 - 1),
+    serial_number: Optional[int] = None,
     time_not_before: int = 0,  # 0 means now.
     time_not_after: int = 1 * (365 * 24 * 60 * 60),  # 1 year.
 ) -> OpenSSL.crypto.X509:
@@ -95,7 +95,7 @@ def new_X509(  # pylint: disable=invalid-name
     cert.get_subject().O = organization_name
     cert.get_subject().OU = organization_unit_name
     cert.get_subject().CN = common_name
-    cert.set_serial_number(serial_number)
+    cert.set_serial_number(serial_number or random.randint(0, 2**64 - 1))
     cert.set_version(2)
     cert.gmtime_adj_notBefore(time_not_before)
     cert.gmtime_adj_notAfter(time_not_after)
