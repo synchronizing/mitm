@@ -135,6 +135,9 @@ class MITM(CoroutineClass):
                 await proto.connect(connection=connection, host=host, port=port, tls=tls, data=data)
             except InvalidProtocol:  # pragma: no cover
                 proto = None
+            else:
+                # Stop searching for working protocols.
+                break
 
         # Protocol was found, and we connected to a server.
         if proto and connection.server:
