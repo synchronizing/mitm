@@ -1,5 +1,5 @@
 pbr==5.9.0
-PyOpenSSL==22.0.0
+PyOpenSSL==23.1.1
 appdirs==1.4.4
 httpq==1.1.2
 toolbox==1.9.0
