@@ -1,6 +1,9 @@
 # 👨‍💻 mitm
 
 <p align="center">
+  <a href="https://www.pepy.tech/projects/mitm">
+    <img src="https://static.pepy.tech/badge/mitm">
+  </a>
 
   <a href="https://github.com/synchronizing/mitm/actions?query=workflow%3ABuild">
     <img src="https://github.com/synchronizing/mitm/workflows/Build/badge.svg?branch=master&event=push">
