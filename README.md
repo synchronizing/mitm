@@ -125,10 +125,6 @@ See the full [documentation](https://synchronizing.github.io/mitm/) for details.
 
 ## AI Agent Skill
 
-This project ships with a [Claude Code skill](https://github.com/synchronizing/mitm/tree/master/.claude/skills/mitm-proxy) so AI agents can use `mitm` to intercept and reverse-engineer API traffic. Install it in your agent's skill directory:
-
-```
-.claude/skills/mitm-proxy/SKILL.md
-```
+This project ships with an [agent skill](https://github.com/synchronizing/mitm/tree/master/.agents/skills/mitm-proxy) so AI coding agents can use `mitm` to intercept and reverse-engineer API traffic. Compatible with Claude Code, Codex CLI, Copilot, Cursor, Amp, Goose, OpenCode, and any agent that supports the [SKILL.md](https://agentskills.io) format.
 
 The skill teaches agents to wrap commands with `mitm`, read the intercepted traffic, and summarize endpoints, headers, auth patterns, and payloads.
