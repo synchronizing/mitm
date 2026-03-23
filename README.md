@@ -69,15 +69,7 @@ mitm -- python my_script.py            # wrap a script
 
 ## Certificates
 
-Browse to `http://localhost:8888` while the proxy is running to download the CA certificate:
-
-| Platform | Format | How to install |
-|----------|--------|----------------|
-| macOS | `.pem` | Keychain Access → Always Trust |
-| Linux | `.pem` | `sudo cp mitm-ca.pem /usr/local/share/ca-certificates/mitm.crt && sudo update-ca-certificates` |
-| iOS | `.cer` | Settings → VPN & Device Management → install, then Certificate Trust Settings → enable |
-| Android | `.crt` | Settings → Security → Install a certificate → CA certificate |
-| Windows | `.cer` | Install Certificate → Trusted Root Certification Authorities |
+Browse to `http://localhost:8888` while the proxy is running to download and install the CA certificate. Platform-specific formats and instructions are on the page.
 
 ## Library
 
