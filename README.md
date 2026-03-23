@@ -123,8 +123,6 @@ MITM(middlewares=[MyMiddleware]).run()
 
 See the full [documentation](https://synchronizing.github.io/mitm/) for details.
 
-## AI Agent Skill
+## Agent Skill
 
-This project ships with an [agent skill](https://github.com/synchronizing/mitm/tree/master/.agents/skills/mitm-proxy) so AI coding agents can use `mitm` to intercept and reverse-engineer API traffic. Compatible with Claude Code, Codex CLI, Copilot, Cursor, Amp, Goose, OpenCode, and any agent that supports the [SKILL.md](https://agentskills.io) format.
-
-The skill teaches agents to wrap commands with `mitm`, read the intercepted traffic, and summarize endpoints, headers, auth patterns, and payloads.
+An agent skill is available at [`.agents/skills/mitm/`](https://github.com/synchronizing/mitm/tree/master/.agents/skills/mitm) for AI coding agents that support the [SKILL.md](https://agentskills.io) format.

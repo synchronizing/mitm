@@ -1,5 +1,5 @@
 ---
-name: mitm-proxy
+name: mitm
 description: Intercept, inspect, and analyze HTTP/HTTPS traffic from any command or script using the mitm proxy. Use when the user asks to capture network traffic, reverse engineer an API, debug HTTP requests, inspect what a CLI tool sends, or analyze traffic from a script.
 ---
 
