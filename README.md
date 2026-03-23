@@ -132,7 +132,3 @@ This project ships with a [Claude Code skill](https://github.com/synchronizing/m
 ```
 
 The skill teaches agents to wrap commands with `mitm`, read the intercepted traffic, and summarize endpoints, headers, auth patterns, and payloads.
-
-## License
-
-MIT

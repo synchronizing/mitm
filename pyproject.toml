@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Man-in-the-middle proxy with customizable options."
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [{ name = "Felipe Faria" }]
 keywords = ["mitm"]
 classifiers = [
