@@ -11,7 +11,7 @@ Make sure to check out the documentation for `asyncio streams <https://docs.pyth
 Core
 ****
 
-.. class:: mitm.core.Host
+.. class:: mitm.models.Host
 
     A host is a pair of `asyncio.StreamReader` and `asyncio.StreamWriter` objects that are used to communicate with the remote host. There are two types of hosts: a client, and a server. A client host is one that is connected to the `mitm`, and a server host is one that the `mitm` connected to on behalf of the client.
 
@@ -45,21 +45,21 @@ Core
             writer: Optional[asyncio.StreamWriter] = None
             mitm_managed: Optional[bool] = True
 
-.. class:: mitm.core.Connection
+.. class:: mitm.models.Connection
 
     A connection is a pair of `Host` objects that the `mitm` relays data between. When a connection is created the server host is not resolved until the data is intercepted and the protocol and destination server is figured out.
 
     .. attribute:: client
 
-        The client `mitm.core.Host`. The client host connects to the `mitm`.
+        The client `mitm.models.Host`. The client host connects to the `mitm`.
 
     .. attribute:: server
 
-        The server `mitm.core.Host`. A server host is connected to the `mitm` on behalf of the client host.
+        The server `mitm.models.Host`. A server host is connected to the `mitm` on behalf of the client host.
 
     .. attribute:: protocol
 
-        The `mitm.core.Protocol` object for the connection.
+        The `mitm.models.Protocol` object for the connection.
 
     `Connection` is a `dataclass <https://docs.python.org/3/library/dataclasses.html>`_ that is defined like so:
 
@@ -76,7 +76,7 @@ Core
 Extensions
 **********
 
-.. class:: mitm.core.Middleware
+.. class:: mitm.models.Middleware
 
     Event-driven hook extension for the `mitm`.
 
@@ -92,13 +92,13 @@ Extensions
         :async:
         :staticmethod:
 
-        Called when a client connects to the `mitm` server. Note that the `mitm.core.Connection` object is not fully initialized yet, and only contains a valid client `mitm.core.Host`.
+        Called when a client connects to the `mitm` server. Note that the `mitm.models.Connection` object is not fully initialized yet, and only contains a valid client `mitm.models.Host`.
 
     .. method:: server_connected(connection: Connection)
         :async:
         :staticmethod:
 
-        Called when the `mitm` connects with the destination server. At this point the `mitm.core.Connection` object is fully initialized.
+        Called when the `mitm` connects with the destination server. At this point the `mitm.models.Connection` object is fully initialized.
 
     .. method:: client_data(connection: Connection, data: bytes) -> bytes
         :async:
@@ -130,7 +130,7 @@ Extensions
 
         Called when the server disconnects.
 
-.. class:: mitm.core.Protocol
+.. class:: mitm.models.Protocol
 
     Protocols are implementations on how the data flows between the client and server. Application-layer protocols are implemented by subclassing this class. Built-in protocols can be found in the `mitm.extension` package.
 

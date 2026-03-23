@@ -3,16 +3,15 @@ Github: https://github.com/synchronizing/mitm
 Docs: https://synchronizing.github.io/mitm/
 """
 
-# pylint: disable=wrong-import-order, wrong-import-position
-
 __author__ = "Felipe Faria"
 __project__ = "mitm"
 
 import pathlib
-import appdirs
-from pbr.version import VersionInfo
+from importlib import metadata
 
-__version__ = VersionInfo(__project__).release_string()
+import appdirs
+
+__version__ = metadata.version(__project__)
 __data__ = pathlib.Path(appdirs.user_data_dir(__package__, __author__))
 
 import logging
@@ -25,18 +24,19 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
-from mitm.core import *
-from mitm.crypto import *
 from mitm.extension import *
-from mitm.mitm import *
+from mitm.models import *
+from mitm.proxy import *
+from mitm.utils import crypto
+from mitm.utils.crypto import *
 
 __all__ = [
-    "Host",
+    "MITM",
+    "CertificateAuthority",
     "Connection",
     "Flow",
-    "MITM",
+    "Host",
+    "InvalidProtocol",
     "Middleware",
     "Protocol",
-    "InvalidProtocol",
-    "CertificateAuthority",
 ]

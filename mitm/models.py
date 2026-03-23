@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, List, Optional, Tuple
 
-from mitm.crypto import CertificateAuthority
+from mitm.utils.crypto import CertificateAuthority
 
 
 @dataclass
@@ -67,7 +67,8 @@ class Host:
 
         # At this point the self.writer is either None or a StreamWriter.
         if self.writer:
-            self.host, self.port = self.writer._transport.get_extra_info("peername")  # pylint: disable=protected-access
+            peername = self.writer._transport.get_extra_info("peername")  # pylint: disable=protected-access
+            self.host, self.port = peername[0], peername[1]
 
     def __setattr__(self, name: str, value: Any):
         """
@@ -87,7 +88,8 @@ class Host:
             and not getattr(self, "host", None)
             and not getattr(self, "port", None)
         ):
-            self.host, self.port = value._transport.get_extra_info("peername")
+            peername = value._transport.get_extra_info("peername")
+            self.host, self.port = peername[0], peername[1]
         return super().__setattr__(name, value)
 
     def __bool__(self) -> bool:
@@ -187,8 +189,8 @@ class Middleware(ABC):  # pragma: no cover
         Called when the connection is established with the client.
 
         Note:
-            Note that the `mitm.core.Connection` object is not fully initialized yet,
-            and only contains a valid client `mitm.core.Host`.
+            Note that the `mitm.models.Connection` object is not fully initialized yet,
+            and only contains a valid client `mitm.models.Host`.
         """
         raise NotImplementedError
 
@@ -198,7 +200,7 @@ class Middleware(ABC):  # pragma: no cover
         Called when the connection is established with the server.
 
         Note:
-            At this point the `mitm.core.Connection` object is fully initialized.
+            At this point the `mitm.models.Connection` object is fully initialized.
         """
         raise NotImplementedError
 

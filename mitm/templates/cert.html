@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>mitm</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .page {
+            max-width: 480px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.25rem;
+        }
+
+        .sub {
+            color: #999;
+            margin-bottom: 2.5rem;
+            font-size: 0.95rem;
+        }
+
+        .downloads {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 2.5rem;
+        }
+
+        a.dl {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: #fff;
+            text-decoration: none;
+            transition: border-color 0.15s;
+        }
+
+        a.dl:hover {
+            border-color: #fff;
+        }
+
+        a.dl .name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        a.dl .desc {
+            color: #888;
+            font-size: 0.8rem;
+            margin-top: 0.15rem;
+        }
+
+        a.dl .ext {
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .instructions {
+            border-top: 1px solid #222;
+            padding-top: 1.5rem;
+        }
+
+        .instructions h2 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        details {
+            margin-bottom: 0.75rem;
+        }
+
+        summary {
+            cursor: pointer;
+            padding: 0.6rem 0.8rem;
+            background: #111;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #ccc;
+            list-style: none;
+        }
+
+        summary::-webkit-details-marker {
+            display: none;
+        }
+
+        summary::before {
+            content: "+";
+            margin-right: 0.6rem;
+            font-weight: 700;
+        }
+
+        details[open] summary::before {
+            content: "-";
+        }
+
+        details p {
+            padding: 0.75rem 0.8rem;
+            font-size: 0.85rem;
+            color: #999;
+            line-height: 1.6;
+        }
+
+        code {
+            background: #111;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.82rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <h1>mitm</h1>
+        <p class="sub">Install the CA certificate to inspect HTTPS traffic.</p>
+
+        <div class="downloads">
+            <a class="dl" href="/cert.pem" download="mitm-ca.pem">
+                <div>
+                    <div class="name">macOS / Linux</div>
+                    <div class="desc">PEM format — works with most tools</div>
+                </div>
+                <div class="ext">.pem</div>
+            </a>
+            <a class="dl" href="/cert.cer" download="mitm-ca.cer">
+                <div>
+                    <div class="name">iOS / Windows</div>
+                    <div class="desc">DER format — for system trust stores</div>
+                </div>
+                <div class="ext">.cer</div>
+            </a>
+            <a class="dl" href="/cert.crt" download="mitm-ca.crt">
+                <div>
+                    <div class="name">Android</div>
+                    <div class="desc">DER format — for Android certificate store</div>
+                </div>
+                <div class="ext">.crt</div>
+            </a>
+        </div>
+
+        <div class="instructions">
+            <h2>After downloading</h2>
+
+            <details>
+                <summary>iOS</summary>
+                <p>
+                    Open the <code>.cer</code> file. Go to
+                    <b>Settings → General → VPN & Device Management</b> and install the profile.
+                    Then go to <b>Settings → General → About → Certificate Trust Settings</b>
+                    and enable full trust.
+                </p>
+            </details>
+
+            <details>
+                <summary>Android</summary>
+                <p>
+                    Open the <code>.crt</code> file. Go to
+                    <b>Settings → Security → Encryption & credentials →
+                    Install a certificate → CA certificate</b>.
+                </p>
+            </details>
+
+            <details>
+                <summary>macOS</summary>
+                <p>
+                    Double-click the <code>.pem</code> file to add it to Keychain Access.
+                    Find "mitm" in the login keychain, double-click it, expand
+                    <b>Trust</b>, and set to <b>Always Trust</b>.
+                </p>
+            </details>
+
+            <details>
+                <summary>Windows</summary>
+                <p>
+                    Double-click the <code>.cer</code> file. Click
+                    <b>Install Certificate → Local Machine →
+                    Trusted Root Certification Authorities</b>.
+                </p>
+            </details>
+
+            <details>
+                <summary>Linux</summary>
+                <p>
+                    <code>sudo cp mitm-ca.pem /usr/local/share/ca-certificates/mitm.crt
+                    && sudo update-ca-certificates</code>
+                </p>
+            </details>
+        </div>
+    </div>
+</body>
+</html>

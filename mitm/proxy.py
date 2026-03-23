@@ -2,25 +2,45 @@
 Man-in-the-middle.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
+import pathlib
 from typing import List, Optional
 
-from toolbox.asyncio.pattern import CoroutineClass
+import OpenSSL
 
 from mitm import __data__
-from mitm.core import Connection, Host, Middleware, Protocol
-from mitm.crypto import CertificateAuthority
 from mitm.extension.middleware import Log
 from mitm.extension.protocol import HTTP, InvalidProtocol
+from mitm.models import Connection, Host, Middleware, Protocol
+from mitm.utils.crypto import CertificateAuthority
+
+TEMPLATES = pathlib.Path(__file__).parent / "templates"
+CERT_PAGE = (TEMPLATES / "cert.html").read_bytes()
 
 logger = logging.getLogger(__package__)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
 
-class MITM(CoroutineClass):
+class MITM:
     """
-    Man-in-the-middle server.
+    Man-in-the-middle proxy server.
+
+    Example:
+
+        .. code-block:: python
+
+            from mitm import MITM
+
+            mitm = MITM()
+            mitm.run()
+
+        .. code-block:: python
+
+            async with MITM() as mitm:
+                ...
     """
 
     def __init__(
@@ -30,7 +50,6 @@ class MITM(CoroutineClass):
         protocols: Optional[List[Protocol]] = None,
         middlewares: Optional[List[Middleware]] = None,
         certificate_authority: Optional[CertificateAuthority] = None,
-        run: bool = False,
     ):
         """
         Initializes the MITM class.
@@ -41,16 +60,6 @@ class MITM(CoroutineClass):
             protocols: List of protocols to use. Defaults to `[protocol.HTTP]`.
             middlewares: List of middlewares to use. Defaults to `[middleware.Log]`.
             certificate_authority: Certificate authority to use. Defaults to `CertificateAuthority()`.
-            run: Whether to start the server immediately. Defaults to `False`.
-
-        Example:
-
-            .. code-block:: python
-
-                from mitm import MITM
-
-                mitm = MITM()
-                mitm.run()
         """
         self.host = host
         self.port = port
@@ -74,36 +83,111 @@ class MITM(CoroutineClass):
         new_protocols = []
         for protocol in protocols:
             if isinstance(protocol, type):
-                protocol = protocol(certificate_authority=self.certificate_authority, middlewares=self.middlewares)
+                protocol = protocol(
+                    certificate_authority=self.certificate_authority,
+                    middlewares=self.middlewares,
+                )
             new_protocols.append(protocol)
         self.protocols = new_protocols
 
-        super().__init__(run=run)
+        self.server: asyncio.Server | None = None
 
-    async def entry(self):  # pragma: no cover
+    async def start(self):
         """
-        Entry point for the MITM class.
+        Start the MITM proxy server.
+
+        Notes:
+            Begins accepting connections immediately. Use `run` for blocking usage,
+            or the class as an async context manager for automatic cleanup.
+
+        Raises:
+            OSError: If the server cannot bind to the host and port.
         """
-        try:
-            server = await asyncio.start_server(
-                lambda reader, writer: self.mitm(
-                    Connection(
-                        client=Host(reader=reader, writer=writer),
-                        server=Host(),
-                    )
-                ),
-                host=self.host,
-                port=self.port,
-            )
-        except OSError as err:
-            self._loop.stop()
-            raise err
+        self.server = await asyncio.start_server(
+            lambda reader, writer: self.mitm(
+                Connection(
+                    client=Host(reader=reader, writer=writer),
+                    server=Host(),
+                )
+            ),
+            host=self.host,
+            port=self.port,
+        )
 
         for middleware in self.middlewares:
             await middleware.mitm_started(host=self.host, port=self.port)
 
-        async with server:
-            await server.serve_forever()
+    async def stop(self):
+        """
+        Stop the MITM proxy server.
+        """
+        if self.server:
+            self.server.close()
+            await self.server.wait_closed()
+            self.server = None
+
+    def run(self):
+        """
+        Run the MITM proxy server (blocking).
+
+        Notes:
+            Starts the server and serves forever until interrupted.
+            For non-blocking usage, use `start` and `stop` directly.
+        """
+
+        async def serve():
+            await self.start()
+            async with self.server:
+                await self.server.serve_forever()
+
+        asyncio.run(serve())
+
+    async def __aenter__(self) -> MITM:
+        await self.start()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> bool:
+        await self.stop()
+        return False
+
+    async def serve_direct(self, connection: Connection, data: bytes):
+        """
+        Serve the cert download page for direct (non-proxy) requests.
+        """
+        first_line = data.split(b"\r\n", 1)[0]
+        parts = first_line.split(b" ")
+        path = parts[1].decode() if len(parts) > 1 else "/"
+
+        if path == "/":
+            body = CERT_PAGE
+            content_type = "text/html; charset=utf-8"
+            disposition = ""
+        elif path == "/cert.pem":
+            body = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, self.certificate_authority.cert)
+            content_type = "application/x-pem-file"
+            disposition = "Content-Disposition: attachment; filename=mitm-ca.pem\r\n"
+        elif path in ("/cert.cer", "/cert.crt"):
+            body = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_ASN1, self.certificate_authority.cert)
+            ext = path.split(".")[-1]
+            content_type = "application/x-x509-ca-cert"
+            disposition = f"Content-Disposition: attachment; filename=mitm-ca.{ext}\r\n"
+        else:
+            body = b"404 Not Found"
+            content_type = "text/plain"
+            disposition = ""
+
+        header = (
+            f"HTTP/1.1 200 OK\r\n"
+            f"Content-Type: {content_type}\r\n"
+            f"Content-Length: {len(body)}\r\n"
+            f"{disposition}"
+            f"Connection: close\r\n"
+            f"\r\n"
+        )
+        connection.client.writer.write(header.encode() + body)
+        await connection.client.writer.drain()
+        connection.client.writer.close()
+        await connection.client.writer.wait_closed()
 
     async def mitm(self, connection: Connection):
         """
@@ -125,6 +209,12 @@ class MITM(CoroutineClass):
         for middleware in self.middlewares:
             data = await middleware.client_data(connection=connection, data=data)
 
+        # Direct requests (GET /path, not GET http://...) are served by the cert page.
+        first_line = data.split(b"\r\n", 1)[0]
+        if first_line.startswith(b"GET /") and not first_line.startswith(b"GET http"):
+            await self.serve_direct(connection, data)
+            return
+
         # Finds the protocol that matches the data.
         proto = None
         for prtcl in self.protocols:
@@ -141,7 +231,6 @@ class MITM(CoroutineClass):
 
         # Protocol was found, and we connected to a server.
         if proto and connection.server:
-
             # Sets the connection protocol.
             connection.protocol = proto
 

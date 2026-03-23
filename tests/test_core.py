@@ -1,6 +1,8 @@
-import pytest
-from mitm import Host, Connection
 import asyncio
+
+import pytest
+
+from mitm import Connection, Host
 
 
 @pytest.mark.asyncio

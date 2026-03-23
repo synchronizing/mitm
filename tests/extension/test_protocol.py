@@ -1,6 +1,5 @@
-import asyncio
-
 import pytest
+
 from mitm import HTTP, Connection, Host, InvalidProtocol
 
 

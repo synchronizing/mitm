@@ -1,10 +1,11 @@
 import pytest
-from mitm import extension, core
+
+from mitm import extension, models
 
 
 class Test_Log:
     log = extension.Log()
-    connection = core.Connection(core.Host(), core.Host())
+    connection = models.Connection(models.Host(), models.Host())
 
     @pytest.mark.asyncio
     async def test_init(self):

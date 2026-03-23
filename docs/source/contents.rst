@@ -18,7 +18,7 @@ Contents
   :caption: API
   :glob:
 
-  module/core
+  module/models
   module/crypto
   module/extension
   module/mitm
