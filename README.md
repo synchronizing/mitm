@@ -4,53 +4,31 @@
   <a href="https://www.pepy.tech/projects/mitm">
     <img src="https://static.pepy.tech/badge/mitm">
   </a>
-
   <a href="https://github.com/synchronizing/mitm/actions?query=workflow%3ABuild">
     <img src="https://github.com/synchronizing/mitm/workflows/Build/badge.svg?branch=master&event=push">
   </a>
-
   <a href="https://synchronizing.github.io/mitm/">
     <img src="https://github.com/synchronizing/mitm/actions/workflows/docs-publish.yaml/badge.svg">
   </a>
-
   <a href="https://coveralls.io/github/synchronizing/mitm?branch=master">
     <img src="https://coveralls.io/repos/github/synchronizing/mitm/badge.svg?branch=master">
   </a>
-
   <a href="https://opensource.org/licenses/MIT">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg">
   </a>
 </p>
 
-A customizable man-in-the-middle TCP proxy with support for HTTP & HTTPS.
+Man-in-the-middle proxy for HTTP & HTTPS. Wrap any command, see every request.
 
-## Installing
+## Install
 
 ```
 pip install mitm
 ```
 
-## CLI
+## Quick Start
 
-The fastest way to use `mitm` is through the CLI. Run it standalone as a proxy, or wrap any command to capture its traffic:
-
-```bash
-# Start the proxy server.
-mitm
-
-# Start on a custom port.
-mitm -p 9999
-
-# Wrap a command and capture its traffic.
-mitm -- curl https://httpbin.org/ip
-
-# Wrap a Python script.
-mitm -- python my_script.py
-```
-
-When wrapping a command, `mitm` automatically sets `HTTP_PROXY`, `HTTPS_PROXY`, and CA certificate environment variables so the child process routes traffic through the proxy.
-
-Intercepted traffic is displayed with a `┊` gutter prefix while the wrapped command's output flows through normally:
+Wrap a command and watch its traffic:
 
 ```
 $ mitm -- curl https://httpbin.org/ip
@@ -71,77 +49,90 @@ $ mitm -- curl https://httpbin.org/ip
   ┊ Content-Type: application/json
   ┊ Content-Length: 33
   ┊
-  ┊ {
-  ┊   "origin": "108.46.224.142"
-  ┊ }
-  ┊
 {
   "origin": "108.46.224.142"
 }
 ```
 
-Proxy traffic goes to stderr; the command's stdout is untouched and safe to pipe.
+The `┊` lines are intercepted proxy traffic (stderr). Everything else is the command's normal output (stdout). Pipe-safe.
 
-### Certificate Installation
+`mitm` sets `HTTP_PROXY`, `HTTPS_PROXY`, and the CA cert env vars automatically on the child process — nothing to configure.
 
-Browse to `http://localhost:8888` while the proxy is running to download the CA certificate. The page serves certificates in the right format for each platform:
+## CLI
 
-| Platform | Format | Instructions |
-|----------|--------|-------------|
-| macOS | `.pem` | Add to Keychain Access, set to Always Trust |
-| Linux | `.pem` | Copy to `/usr/local/share/ca-certificates/` |
-| iOS | `.cer` | Install profile, then enable in Certificate Trust Settings |
-| Android | `.crt` | Install via Security settings |
-| Windows | `.cer` | Install to Trusted Root Certification Authorities |
+```bash
+mitm                                   # standalone proxy on :8888
+mitm -p 9999                           # custom port
+mitm -- curl https://example.com       # wrap a command
+mitm -- python my_script.py            # wrap a script
+```
+
+## Certificates
+
+Browse to `http://localhost:8888` while the proxy is running to download the CA certificate:
+
+| Platform | Format | How to install |
+|----------|--------|----------------|
+| macOS | `.pem` | Keychain Access → Always Trust |
+| Linux | `.pem` | `sudo cp mitm-ca.pem /usr/local/share/ca-certificates/mitm.crt && sudo update-ca-certificates` |
+| iOS | `.cer` | Settings → VPN & Device Management → install, then Certificate Trust Settings → enable |
+| Android | `.crt` | Settings → Security → Install a certificate → CA certificate |
+| Windows | `.cer` | Install Certificate → Trusted Root Certification Authorities |
 
 ## Library
 
-Use `mitm` as a Python library for more control:
-
 ```python
 from mitm import MITM
 
-mitm = MITM()
-mitm.run()
+# Blocking.
+MITM().run()
 ```
-
-Or with async context manager:
 
 ```python
-import asyncio
-from mitm import MITM
-
-async def main():
-    async with MITM() as mitm:
-        # Proxy is running; do work here.
-        ...
-
-asyncio.run(main())
+# Async.
+async with MITM(port=8888) as m:
+    ...
 ```
-
-Or with manual start/stop:
 
 ```python
-import asyncio
-from mitm import MITM
-
-async def main():
-    mitm = MITM()
-    await mitm.start()
-    # ...
-    await mitm.stop()
-
-asyncio.run(main())
+# Manual lifecycle.
+m = MITM()
+await m.start()
+# ...
+await m.stop()
 ```
 
-## Extensions
+## Extending
 
-`mitm` can be customized through middlewares and protocols.
+`mitm` is built around two extension points:
 
-[Middlewares](https://synchronizing.github.io/mitm/docs/internals.html#mitm.models.Middleware) are event-driven hooks called when connections are made, requests are sent, responses are received, and connections are closed.
+**Middlewares** — event hooks for connection lifecycle, request/response data, and logging. Subclass `Middleware` and pass it in:
 
-[Protocols](https://synchronizing.github.io/mitm/docs/internals.html#mitm.models.Protocol) are implementations on _how_ data flows between client and server, used to implement [application layer](https://en.wikipedia.org/wiki/Application_layer) protocols.
+```python
+from mitm import MITM, Middleware
 
-## Documentation
+class MyMiddleware(Middleware):
+    async def client_data(self, connection, data):
+        print(data)
+        return data
 
-Full documentation can be found [**here**](https://synchronizing.github.io/mitm/).
+MITM(middlewares=[MyMiddleware]).run()
+```
+
+**Protocols** — control how data flows between client and server. The default `HTTP` protocol handles HTTP/1.1 with TLS interception. Subclass `Protocol` to support other application-layer protocols.
+
+See the full [documentation](https://synchronizing.github.io/mitm/) for details.
+
+## AI Agent Skill
+
+This project ships with a [Claude Code skill](https://github.com/synchronizing/mitm/tree/master/.claude/skills/mitm-proxy) so AI agents can use `mitm` to intercept and reverse-engineer API traffic. Install it in your agent's skill directory:
+
+```
+.claude/skills/mitm-proxy/SKILL.md
+```
+
+The skill teaches agents to wrap commands with `mitm`, read the intercepted traffic, and summarize endpoints, headers, auth patterns, and payloads.
+
+## License
+
+MIT
