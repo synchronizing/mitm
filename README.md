@@ -73,45 +73,36 @@ Browse to `http://localhost:8888` while the proxy is running to download and ins
 
 ## Library
 
-```python
-from mitm import MITM
+Using the default values for the `MITM` class:
 
-# Blocking.
-MITM().run()
+```python
+from mitm import MITM, CertificateAuthority
+from mitm.extension import protocol, middleware
+
+mitm = MITM(
+    host="127.0.0.1",
+    port=8888,
+    protocols=[protocol.HTTP],
+    middlewares=[middleware.Log],
+    certificate_authority=CertificateAuthority(),
+)
+mitm.run()
 ```
 
+The proxy can also be used as an async context manager:
+
 ```python
-# Async.
-async with MITM(port=8888) as m:
+async with MITM() as mitm:
     ...
 ```
 
-```python
-# Manual lifecycle.
-m = MITM()
-await m.start()
-# ...
-await m.stop()
-```
+## Extensions
 
-## Extending
+`mitm` is customizable through middlewares and protocols.
 
-`mitm` is built around two extension points:
+[Middlewares](https://synchronizing.github.io/mitm/docs/internals.html#mitm.models.Middleware) are event-driven hooks called when connections are made, requests are sent, responses are received, and connections are closed.
 
-**Middlewares** — event hooks for connection lifecycle, request/response data, and logging. Subclass `Middleware` and pass it in:
-
-```python
-from mitm import MITM, Middleware
-
-class MyMiddleware(Middleware):
-    async def client_data(self, connection, data):
-        print(data)
-        return data
-
-MITM(middlewares=[MyMiddleware]).run()
-```
-
-**Protocols** — control how data flows between client and server. The default `HTTP` protocol handles HTTP/1.1 with TLS interception. Subclass `Protocol` to support other application-layer protocols.
+[Protocols](https://synchronizing.github.io/mitm/docs/internals.html#mitm.models.Protocol) are implementations on _how_ data flows between client and server, used to implement [application layer](https://en.wikipedia.org/wiki/Application_layer) protocols.
 
 See the full [documentation](https://synchronizing.github.io/mitm/) for details.
 
