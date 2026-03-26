@@ -1,4 +1,6 @@
 import asyncio
+import threading
+import time
 
 import pytest
 
@@ -18,12 +20,17 @@ def server():
         await mitm_.start()
         await mitm_.server.serve_forever()
 
-    task = loop.create_task(run())
-    loop.run_until_complete(asyncio.sleep(0.5))
+    def serve():
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(run())
 
-    try:
-        yield
-    finally:
-        task.cancel()
-        loop.run_until_complete(mitm_.stop())
-        loop.close()
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    time.sleep(0.5)
+
+    yield
+
+    loop.call_soon_threadsafe(loop.stop)
+    thread.join(timeout=5)
+    loop.run_until_complete(mitm_.stop())
+    loop.close()
