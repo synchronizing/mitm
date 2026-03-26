@@ -1,0 +1,38 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.13, pytest-9.0.2, pluggy-1.6.0
+rootdir: /Users/felipe/Desktop/mitm
+configfile: pyproject.toml
+plugins: anyio-4.12.1, cov-7.1.0, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 53 items
+
+tests/utils/http/test_parser.py ........................................ [ 75%]
+.............                                                            [100%]
+
+=============================== warnings summary ===============================
+tests/utils/http/test_parser.py::Test_Headers::test_compile_single_header
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:148: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE, pathlen:0"),
+
+tests/utils/http/test_parser.py::Test_Headers::test_compile_single_header
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:149: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
+
+tests/utils/http/test_parser.py::Test_Headers::test_compile_single_header
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:150: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=self.cert),
+
+tests/utils/http/test_parser.py::Test_Headers::test_compile_single_header
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:146: DeprecationWarning: This API is deprecated and will be removed in a future version of pyOpenSSL. You should use pyca/cryptography's X.509 APIs instead.
+    self.cert.add_extensions(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+______________ coverage: platform darwin, python 3.12.13-final-0 _______________
+
+Name                        Stmts   Miss  Cover   Missing
+---------------------------------------------------------
+mitm/utils/http/parser.py     131      4    97%   277, 280, 333, 336
+---------------------------------------------------------
+TOTAL                         131      4    97%
+======================== 53 passed, 4 warnings in 0.68s ========================

@@ -207,7 +207,7 @@ Max Concurrent: 4 (Wave 1)
   - Files: `tests/extension/test_middleware.py`
   - Pre-commit: `uv run pytest tests/extension/test_middleware.py -v --tb=short`
 
-- [ ] 5. Expand Protocol Resolve and Connect Tests
+- [x] 5. Expand Protocol Resolve and Connect Tests
 
   **What to do**:
   - Expand existing `tests/extension/test_protocol.py` — add new tests below existing `Test_HTTP` class
@@ -276,7 +276,7 @@ Max Concurrent: 4 (Wave 1)
   - Files: `tests/extension/test_protocol.py`
   - Pre-commit: `uv run pytest tests/extension/test_protocol.py -v --tb=short`
 
-- [ ] 6. Proxy serve_direct Integration Tests
+- [x] 6. Proxy serve_direct Integration Tests
 
   **What to do**:
   - Create `tests/test_proxy.py`
@@ -391,7 +391,7 @@ Max Concurrent: 4 (Wave 1)
   - Message: `test: add test directory scaffolding for utils/http`
   - Files: `tests/utils/__init__.py`, `tests/utils/http/__init__.py`
 
-- [ ] 2. HTTP Parser Tests
+- [x] 2. HTTP Parser Tests
 
   **What to do**:
   - Create `tests/utils/http/test_parser.py`
@@ -458,7 +458,7 @@ Max Concurrent: 4 (Wave 1)
   - Files: `tests/utils/http/test_parser.py`
   - Pre-commit: `uv run pytest tests/utils/http/test_parser.py -v --tb=short`
 
-- [ ] 3. Item Type Wrapper and Dict Variant Tests
+- [x] 3. Item Type Wrapper and Dict Variant Tests
 
   **What to do**:
   - Create `tests/utils/http/test_item.py`
