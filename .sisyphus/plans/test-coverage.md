@@ -147,7 +147,7 @@ Max Concurrent: 4 (Wave 1)
 
 ## TODOs
 
-- [ ] 4. Expand Middleware Format Function Tests
+- [x] 4. Expand Middleware Format Function Tests
 
   **What to do**:
   - Expand existing `tests/extension/test_middleware.py` — add new test classes below the existing `Test_Log` class

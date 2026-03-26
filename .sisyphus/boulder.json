@@ -3,7 +3,9 @@
   "started_at": "2026-03-26T05:42:56.798Z",
   "session_ids": [
     "ses_2e51d2438ffe1y3ak4JMmO3KE9",
-    "ses_2d7539bf6ffetaDCRboSX3LhdE"
+    "ses_2d7539bf6ffetaDCRboSX3LhdE",
+    "ses_2d74fedf3ffe4lqthYfcmVuhCW",
+    "ses_2d7507672fferNfjiyxTIEtowq"
   ],
   "plan_name": "test-coverage",
   "agent": "atlas"
