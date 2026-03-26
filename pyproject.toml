@@ -70,6 +70,10 @@ select = ["E", "F", "I", "W", "RUF"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "ebpf: requires Linux kernel 5.8+ with BTF and sudo",
+    "macos_dylib: requires macOS",
+]
 
 [tool.coverage.run]
 omit = ["mitm/cli.py"]
