@@ -12,13 +12,17 @@ async def test_Host():
     assert bool(host) is False
     assert str(host) == "<empty host>"
 
-    # 93.184.216.34 = Example.com
-    reader, writer = await asyncio.open_connection("93.184.216.34", 80)
+    # Use a local loopback server to get a real reader/writer pair.
+    srv = await asyncio.start_server(lambda r, w: w.close(), "127.0.0.1", 0)
+    addr = srv.sockets[0].getsockname()
+    reader, writer = await asyncio.open_connection(addr[0], addr[1])
     host = Host(reader=reader, writer=writer, mitm_managed=False)
-    assert host.host == "93.184.216.34"
-    assert host.port == 80
+    assert host.host == "127.0.0.1"
+    assert host.port == addr[1]
     assert bool(host)
-    assert str(host) == "93.184.216.34:80"
+    assert str(host) == f"127.0.0.1:{addr[1]}"
+    writer.close()
+    srv.close()
 
 
 @pytest.mark.asyncio
