@@ -1,0 +1,89 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.13, pytest-9.0.2, pluggy-1.6.0 -- /Users/felipe/Desktop/mitm/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/felipe/Desktop/mitm
+configfile: pyproject.toml
+plugins: anyio-4.12.1, cov-7.1.0, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 23 items
+
+tests/extension/test_middleware.py::Test_Log::test_init PASSED           [  4%]
+tests/extension/test_middleware.py::Test_Log::test_mitm_started PASSED   [  8%]
+tests/extension/test_middleware.py::Test_Log::test_client_connected PASSED [ 13%]
+tests/extension/test_middleware.py::Test_Log::test_server_connected PASSED [ 17%]
+tests/extension/test_middleware.py::Test_Log::test_client_data PASSED    [ 21%]
+tests/extension/test_middleware.py::Test_Log::test_server_data PASSED    [ 26%]
+tests/extension/test_middleware.py::Test_Log::test_client_disconnected PASSED [ 30%]
+tests/extension/test_middleware.py::Test_Log::test_server_disconnected PASSED [ 34%]
+tests/extension/test_middleware.py::Test_FormatBytes::test_valid_utf8 PASSED [ 39%]
+tests/extension/test_middleware.py::Test_FormatBytes::test_multiline PASSED [ 43%]
+tests/extension/test_middleware.py::Test_FormatBytes::test_invalid_utf8 PASSED [ 47%]
+tests/extension/test_middleware.py::Test_FormatBytes::test_empty PASSED  [ 52%]
+tests/extension/test_middleware.py::Test_FormatGutter::test_valid_utf8 PASSED [ 56%]
+tests/extension/test_middleware.py::Test_FormatGutter::test_multiline PASSED [ 60%]
+tests/extension/test_middleware.py::Test_FormatGutter::test_invalid_utf8 PASSED [ 65%]
+tests/extension/test_middleware.py::Test_FormatGutter::test_empty PASSED [ 69%]
+tests/extension/test_middleware.py::Test_CLILog::test_mitm_started PASSED [ 73%]
+tests/extension/test_middleware.py::Test_CLILog::test_server_connected PASSED [ 78%]
+tests/extension/test_middleware.py::Test_CLILog::test_client_data PASSED [ 82%]
+tests/extension/test_middleware.py::Test_CLILog::test_server_data PASSED [ 86%]
+tests/extension/test_middleware.py::Test_CLILog::test_client_connected_noop PASSED [ 91%]
+tests/extension/test_middleware.py::Test_CLILog::test_client_disconnected_noop PASSED [ 95%]
+tests/extension/test_middleware.py::Test_CLILog::test_server_disconnected_noop PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/extension/test_middleware.py::Test_Log::test_init
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:148: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE, pathlen:0"),
+
+tests/extension/test_middleware.py::Test_Log::test_init
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:149: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
+
+tests/extension/test_middleware.py::Test_Log::test_init
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:150: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=self.cert),
+
+tests/extension/test_middleware.py::Test_Log::test_init
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:146: DeprecationWarning: This API is deprecated and will be removed in a future version of pyOpenSSL. You should use pyca/cryptography's X.509 APIs instead.
+    self.cert.add_extensions(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 23 passed, 4 warnings in 0.57s ========================
+============================= test session starts ==============================
+platform darwin -- Python 3.12.13, pytest-9.0.2, pluggy-1.6.0
+rootdir: /Users/felipe/Desktop/mitm
+configfile: pyproject.toml
+plugins: anyio-4.12.1, cov-7.1.0, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 23 items
+
+tests/extension/test_middleware.py .......................               [100%]
+
+=============================== warnings summary ===============================
+tests/extension/test_middleware.py::Test_Log::test_init
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:148: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE, pathlen:0"),
+
+tests/extension/test_middleware.py::Test_Log::test_init
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:149: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
+
+tests/extension/test_middleware.py::Test_Log::test_init
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:150: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=self.cert),
+
+tests/extension/test_middleware.py::Test_Log::test_init
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:146: DeprecationWarning: This API is deprecated and will be removed in a future version of pyOpenSSL. You should use pyca/cryptography's X.509 APIs instead.
+    self.cert.add_extensions(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+______________ coverage: platform darwin, python 3.12.13-final-0 _______________
+
+Name                           Stmts   Miss  Cover   Missing
+------------------------------------------------------------
+mitm/extension/middleware.py      62      0   100%
+------------------------------------------------------------
+TOTAL                             62      0   100%
+======================== 23 passed, 4 warnings in 0.63s ========================
