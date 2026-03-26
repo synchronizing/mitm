@@ -22,7 +22,10 @@ def server():
 
     def serve():
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(run())
+        try:
+            loop.run_until_complete(run())
+        except RuntimeError:
+            pass
 
     thread = threading.Thread(target=serve, daemon=True)
     thread.start()
@@ -32,5 +35,4 @@ def server():
 
     loop.call_soon_threadsafe(loop.stop)
     thread.join(timeout=5)
-    loop.run_until_complete(mitm_.stop())
     loop.close()
