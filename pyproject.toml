@@ -51,6 +51,8 @@ include = ["mitm*"]
 
 [tool.setuptools.package-data]
 mitm = ["templates/*.html"]
+"mitm.intercept.linux" = ["bin/mitm-redirector-*"]
+"mitm.intercept.macos" = ["lib/libmitmhook.dylib"]
 
 [tool.setuptools_scm]
 
