@@ -528,19 +528,19 @@ Max Concurrent: 4 (Wave 1)
 
 > 4 review agents run in PARALLEL. ALL must APPROVE. Present consolidated results to user and get explicit "okay" before completing.
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
+- [x] F1. **Plan Compliance Audit** — `oracle`
   Read the plan end-to-end. For each "Must Have": verify test exists (read test file, search for test function). For each "Must NOT Have": search test files for forbidden patterns (cli tests, HTTPLog tests, mock imports). Compare deliverables against plan.
   Output: `Must Have [N/N] | Must NOT Have [N/N] | Tasks [N/N] | VERDICT: APPROVE/REJECT`
 
-- [ ] F2. **Code Quality Review** — `unspecified-high`
+- [x] F2. **Code Quality Review** — `unspecified-high`
   Run `uv run pytest tests/ -v --tb=short`. Review all new/changed test files for: mock imports, unnecessary parametrize, tests that verify Python mechanics, `# pragma: no cover` additions. Check test naming follows conventions (Test_ClassName, test_method_name).
   Output: `Tests [N pass/N fail] | Style [N clean/N issues] | VERDICT`
 
-- [ ] F3. **Real Manual QA** — `unspecified-high`
+- [x] F3. **Real Manual QA** — `unspecified-high`
   Run full test suite: `uv run pytest tests/ -v --cov=mitm --cov-report=term-missing`. Verify per-module coverage improved: parser.py > 67%, item.py > 58%, protocol.py > 58%, proxy.py > 69%, middleware.py > 73%. Save coverage report to `.sisyphus/evidence/final-qa/coverage-report.txt`.
   Output: `Coverage [old% → new%] per module | Overall [old → new] | VERDICT`
 
-- [ ] F4. **Scope Fidelity Check** — `deep`
+- [x] F4. **Scope Fidelity Check** — `deep`
   For each task: read "What to do", read actual test file. Verify: everything in spec was written (no missing tests), nothing beyond spec was added (no cli tests, no HTTPLog tests, no production code changes). Flag any test that looks "forced" (testing getters/setters, Python mechanics).
   Output: `Tasks [N/N compliant] | Forced Tests [CLEAN/N issues] | VERDICT`
 
