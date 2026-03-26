@@ -7,6 +7,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import pathlib
+import socket
+import struct
 from typing import List, Optional
 
 import OpenSSL
@@ -22,6 +24,31 @@ CERT_PAGE = (TEMPLATES / "cert.html").read_bytes()
 
 logger = logging.getLogger(__package__)
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
+
+
+def original_dest_from_tun(packet: bytes) -> tuple[str, int]:
+    version = packet[0] >> 4
+    if version == 4:
+        header_length = (packet[0] & 0x0F) * 4
+        dst_ip = socket.inet_ntop(socket.AF_INET, packet[16:20])
+        dst_port = struct.unpack("!H", packet[header_length + 2 : header_length + 4])[0]
+    elif version == 6:
+        dst_ip = socket.inet_ntop(socket.AF_INET6, packet[24:40])
+        dst_port = struct.unpack("!H", packet[42:44])[0]
+    else:
+        raise ValueError(f"Unknown IP version: {version}")
+    return dst_ip, dst_port
+
+
+async def original_dest_from_synthetic_connect(reader: asyncio.StreamReader) -> tuple[str, int, bool]:
+    header_bytes = await reader.readuntil(b"\r\n\r\n")
+    lines = header_bytes.split(b"\r\n")
+    parts = lines[0].split(b" ")
+    host_port = parts[1].decode()
+    host, port_str = host_port.rsplit(":", 1)
+    port = int(port_str)
+    tls = any(line.lower() == b"x-mitm-tls: 1" for line in lines[1:] if line)
+    return host, port, tls
 
 
 class MITM:
@@ -50,6 +77,7 @@ class MITM:
         protocols: Optional[List[Protocol]] = None,
         middlewares: Optional[List[Middleware]] = None,
         certificate_authority: Optional[CertificateAuthority] = None,
+        transparent_port: Optional[int] = None,
     ):
         """
         Initializes the MITM class.
@@ -63,6 +91,7 @@ class MITM:
         """
         self.host = host
         self.port = port
+        self.transparent_port = transparent_port
         self.certificate_authority = certificate_authority if certificate_authority else CertificateAuthority()
 
         # Stores the CA certificate and private key.
@@ -209,25 +238,49 @@ class MITM:
         for middleware in self.middlewares:
             data = await middleware.client_data(connection=connection, data=data)
 
+        transparent_mode = data.startswith(b"CONNECT ") and b"X-Mitm-Transparent: 1" in data
+        transparent_target: tuple[str, int, bool] | None = None
+        if transparent_mode:
+            header_data = data
+            if b"\r\n\r\n" not in header_data:
+                header_data += await connection.client.reader.readuntil(b"\r\n\r\n")
+
+            header_end = header_data.index(b"\r\n\r\n") + 4
+            reader = asyncio.StreamReader()
+            reader.feed_data(header_data[:header_end])
+            reader.feed_eof()
+            transparent_target = await original_dest_from_synthetic_connect(reader)
+
         # Direct requests (GET /path, not GET http://...) are served by the cert page.
         first_line = data.split(b"\r\n", 1)[0]
-        if first_line.startswith(b"GET /") and not first_line.startswith(b"GET http"):
+        if not transparent_mode and first_line.startswith(b"GET /") and not first_line.startswith(b"GET http"):
             await self.serve_direct(connection, data)
             return
 
         # Finds the protocol that matches the data.
         proto = None
-        for prtcl in self.protocols:
-            proto = prtcl
-            try:
-                # Attempts to resolve the protocol, and connect to the server.
-                host, port, tls = await proto.resolve(connection=connection, data=data)
-                await proto.connect(connection=connection, host=host, port=port, tls=tls, data=data)
-            except InvalidProtocol:  # pragma: no cover
-                proto = None
-            else:
-                # Stop searching for working protocols.
-                break
+        if transparent_mode and transparent_target:
+            host, port, tls = transparent_target
+            for prtcl in self.protocols:
+                proto = prtcl
+                try:
+                    await proto.connect(connection=connection, host=host, port=port, tls=tls, data=b"")
+                except InvalidProtocol:  # pragma: no cover
+                    proto = None
+                else:
+                    break
+        else:
+            for prtcl in self.protocols:
+                proto = prtcl
+                try:
+                    # Attempts to resolve the protocol, and connect to the server.
+                    host, port, tls = await proto.resolve(connection=connection, data=data)
+                    await proto.connect(connection=connection, host=host, port=port, tls=tls, data=data)
+                except InvalidProtocol:  # pragma: no cover
+                    proto = None
+                else:
+                    # Stop searching for working protocols.
+                    break
 
         # Protocol was found, and we connected to a server.
         if proto and connection.server:
