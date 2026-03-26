@@ -68,3 +68,10 @@ select = ["E", "F", "I", "W", "RUF"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = ["mitm/cli.py"]
+
+[tool.coverage.report]
+omit = ["mitm/cli.py"]
+fail_under = 85

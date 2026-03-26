@@ -32,7 +32,7 @@ jobs:
         pip install ".[dev]"
     - name: Run PyTest
       run: |
-        pytest --cov=mitm tests/
+        pytest --cov=mitm --cov-fail-under=85 tests/
     - name: Run Coveralls
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
