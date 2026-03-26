@@ -1,18 +1,30 @@
 {
-  "active_plan": "/Users/felipe/Desktop/mitm/.sisyphus/plans/test-coverage.md",
-  "started_at": "2026-03-26T05:42:56.798Z",
+  "active_plan": "/Users/felipe/Desktop/mitm/.sisyphus/plans/local-capture.md",
+  "started_at": "2026-03-26T07:13:16.163Z",
   "session_ids": [
     "ses_2e51d2438ffe1y3ak4JMmO3KE9",
-    "ses_2d7539bf6ffetaDCRboSX3LhdE",
-    "ses_2d74fedf3ffe4lqthYfcmVuhCW",
-    "ses_2d7507672fferNfjiyxTIEtowq",
-    "ses_2d74b46ddffevUd9LkYbe94BTZ",
-    "ses_2d74bd209ffedHsRyxo964KOpH",
-    "ses_2d7451fb4ffeguXqIzCkiNLO29",
-    "ses_2d7454724ffe9H0CdwgpEujYK9",
-    "ses_2d74570a1ffecKVqbYFkGKDoYI",
-    "ses_2d744d66dffeA81NeB4x0x4unf"
+    "ses_2d6ffc88dffea6tA40zLOGes0Q",
+    "ses_2d7001832ffeESlPBx21VEk1YK",
+    "ses_2d6dc4cfcffeXi1xwTuFErSqlD",
+    "ses_2d6dcdae7ffeHCiZnBletb4Idy",
+    "ses_2d6d97758ffekCxujadeDU1DPf",
+    "ses_2d6d924feffedku4Sv7z0Dmo87",
+    "ses_2d6d6c3dcffezPjdt7VlWipipv",
+    "ses_2d6d66e98ffesewuxoSihdznx4",
+    "ses_2d6d4c82cffeYKqMqMf3hmeJNL",
+    "ses_2d6d4f502ffe2pnAYF45Rjisn2",
+    "ses_2d6d51fa1ffepndEQkhxyt2CEq"
   ],
-  "plan_name": "test-coverage",
-  "agent": "atlas"
+  "plan_name": "local-capture",
+  "agent": "atlas",
+  "task_sessions": {
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_2d6d51fa1ffepndEQkhxyt2CEq",
+      "agent": "oracle",
+      "updated_at": "2026-03-26T08:04:52.875Z"
+    }
+  }
 }

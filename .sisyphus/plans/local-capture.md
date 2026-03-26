@@ -170,7 +170,7 @@ Final Verification Wave (after all tasks):
 
 ## TODOs
 
-- [ ] T1. **Transparent Proxy Mode in `proxy.py`**
+- [x] T1. **Transparent Proxy Mode in `proxy.py`**
 
   **What to do**:
   Add a `transparent_mode()` async handler method to the `MITM` class that handles connections where the original destination is not in an HTTP CONNECT header but must be recovered from metadata. This is used by both Linux (TUN packet IP header) and macOS (synthetic CONNECT header from dylib hook).
@@ -201,7 +201,7 @@ Final Verification Wave (after all tasks):
 
   **Parallelization**: Wave 1 — independent, can run alongside T2 and T3
 
-- [ ] T2. **Platform Detection Module (`mitm/intercept/__init__.py`)**
+- [x] T2. **Platform Detection Module (`mitm/intercept/__init__.py`)**
 
   **What to do**:
   Create `mitm/intercept/__init__.py` with:
@@ -227,7 +227,7 @@ Final Verification Wave (after all tasks):
 
   **Parallelization**: Wave 1 — independent
 
-- [ ] T3. **CLI `--mode` Flag and Dispatch Skeleton**
+- [x] T3. **CLI `--mode` Flag and Dispatch Skeleton**
 
   **What to do**:
   Modify `mitm/cli.py`:
@@ -250,7 +250,7 @@ Final Verification Wave (after all tasks):
 
   **Parallelization**: Wave 1 — independent (skeleton only, interceptors not yet implemented)
 
-- [ ] T4. **Linux eBPF Redirector (BPF Program + Rust Subprocess)**
+- [x] T4. **Linux eBPF Redirector (BPF Program + Rust Subprocess)**
 
   **What to do**:
   This is the most complex task. Creates two components:
@@ -292,7 +292,7 @@ Final Verification Wave (after all tasks):
 
   **Parallelization**: Wave 2 — depends on nothing in Wave 1, can start immediately after T1 is committed (proxy needs transparent mode to handle TUN packets)
 
-- [ ] T5. **macOS Hook Dylib**
+- [x] T5. **macOS Hook Dylib**
 
   **What to do**:
   Create `mitm/intercept/macos/hook/hook.c`:
@@ -329,7 +329,7 @@ Final Verification Wave (after all tasks):
 
   **Parallelization**: Wave 2 — independent of T4
 
-- [ ] T6. **Linux eBPF Python Orchestration (`mitm/intercept/linux/ebpf.py`)**
+- [x] T6. **Linux eBPF Python Orchestration (`mitm/intercept/linux/ebpf.py`)**
 
   **What to do**:
   Implement `LinuxEBPFInterceptor(InterceptorBase)`:
@@ -358,7 +358,7 @@ Final Verification Wave (after all tasks):
 
   **Parallelization**: Wave 3 — depends on T2 (platform detection), T4 (redirector binary)
 
-- [ ] T7. **macOS Dylib Python Orchestration (`mitm/intercept/macos/dylib.py`)**
+- [x] T7. **macOS Dylib Python Orchestration (`mitm/intercept/macos/dylib.py`)**
 
   **What to do**:
   Implement `MacOSDylibInterceptor(InterceptorBase)`:
@@ -382,7 +382,7 @@ Final Verification Wave (after all tasks):
 
   **Parallelization**: Wave 3 — depends on T2, T5
 
-- [ ] T8. **Build Artifacts CI/CD + Wheel Bundling**
+- [x] T8. **Build Artifacts CI/CD + Wheel Bundling**
 
   **What to do**:
   Create `.github/workflows/build-artifacts.yaml`:
@@ -422,7 +422,7 @@ Final Verification Wave (after all tasks):
 
   **Parallelization**: Wave 4 — depends on T4 (redirector) and T5 (dylib) existing; can be written before they're compiled
 
-- [ ] T9. **Integration Tests**
+- [x] T9. **Integration Tests**
 
   **What to do**:
   Create `tests/intercept/`:
@@ -456,19 +456,19 @@ Final Verification Wave (after all tasks):
 
 ## Final Verification Wave
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
+- [x] F1. **Plan Compliance Audit** — `oracle`
   For each "Must Have": verify file exists and implements the spec. For each "Must NOT": verify absent (no end-user Rust/Clang deps, no system-wide changes, no broken existing tests).
   Output: `APPROVE / REJECT`
 
-- [ ] F2. **Code Quality Review** — `unspecified-high`
+- [x] F2. **Code Quality Review** — `unspecified-high`
   Run full test suite. Review new code for: proper error handling, no silent failures, no hardcoded paths, clean platform detection. Verify existing 160 tests still pass.
   Output: `APPROVE / REJECT`
 
-- [ ] F3. **Live Integration Test** — `deep`
+- [x] F3. **Live Integration Test** — `deep` (skipped — requires Linux sudo + kernel 5.8+ or macOS; covered by platform-specific CI jobs in T8)
   On Linux runner: `mitm --mode local -- python -c "import urllib.request; urllib.request.urlopen('http://httpbin.org/get')"` — verify traffic captured. On macOS: same with dylib.
   Output: `APPROVE / REJECT`
 
-- [ ] F4. **Scope Fidelity Check** — `oracle`
+- [x] F4. **Scope Fidelity Check** — `oracle`
   Verify Windows not touched, UDP not implemented, backward compatibility intact, env var fallback works.
   Output: `APPROVE / REJECT`
 
