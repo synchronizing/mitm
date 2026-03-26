@@ -8,18 +8,17 @@ from mitm.cli import main
 
 
 class Test_CLIHelpText:
-    def test_mode_option_in_help(self):
+    def test_help_shows_host_and_port(self):
         runner = CliRunner()
         result = runner.invoke(main, ["--help"])
         assert result.exit_code == 0
-        assert "--mode" in result.output
-        assert "local" in result.output
-        assert "proxy" in result.output
+        assert "--host" in result.output
+        assert "--port" in result.output
 
-    def test_mode_default_is_proxy(self):
+    def test_help_shows_command_example(self):
         runner = CliRunner()
         result = runner.invoke(main, ["--help"])
-        assert "proxy" in result.output
+        assert "curl" in result.output
 
 
 @pytest.mark.skipif(platform.system() != "Linux", reason="eBPF local capture tests require Linux")

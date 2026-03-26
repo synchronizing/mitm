@@ -33,15 +33,8 @@ CERT_ENV_KEYS = [
 @click.command(context_settings={"ignore_unknown_options": True})
 @click.option("--host", default="127.0.0.1", show_default=True, help="Host to listen on.")
 @click.option("-p", "--port", default=8888, show_default=True, type=int, help="Port to listen on.")
-@click.option(
-    "--mode",
-    default="proxy",
-    type=click.Choice(["proxy", "local"]),
-    show_default=True,
-    help="Interception mode. 'proxy' uses HTTP_PROXY env vars; 'local' intercepts all TCP via eBPF (Linux) or dylib (macOS).",
-)
 @click.argument("command", nargs=-1, type=click.UNPROCESSED)
-def main(host: str, port: int, mode: str, command: tuple[str, ...]):
+def main(host: str, port: int, command: tuple[str, ...]):
     """
     Man-in-the-middle proxy.
 
@@ -57,10 +50,7 @@ def main(host: str, port: int, mode: str, command: tuple[str, ...]):
     logging.getLogger("mitm").setLevel(logging.CRITICAL)
 
     if command:
-        if mode == "local":
-            code = asyncio.run(wrap_local(host, port, command))
-        else:
-            code = asyncio.run(wrap(host, port, command))
+        code = asyncio.run(wrap_local(host, port, command))
         sys.exit(code)
     else:
         MITM(host=host, port=port, middlewares=[CLILog]).run()
@@ -114,7 +104,6 @@ async def wrap_local(host: str, port: int, command: tuple[str, ...]) -> int:
     platform_mode = detect_platform()
 
     if platform_mode == "linux-ebpf":
-        click.echo("[mitm] local mode: eBPF (requires sudo)", err=True)
         from mitm.intercept.linux.ebpf import LinuxEBPFInterceptor
 
         interceptor = LinuxEBPFInterceptor()
@@ -122,7 +111,6 @@ async def wrap_local(host: str, port: int, command: tuple[str, ...]) -> int:
         return await interceptor.wait()
 
     elif platform_mode == "macos-dylib":
-        click.echo("[mitm] local mode: dylib injection", err=True)
         from mitm.intercept.macos.dylib import MacOSDylibInterceptor
 
         interceptor = MacOSDylibInterceptor()
@@ -130,12 +118,6 @@ async def wrap_local(host: str, port: int, command: tuple[str, ...]) -> int:
         return await interceptor.wait()
 
     else:
-        click.echo(
-            "[mitm] local mode not available on this system — falling back to env vars.\n"
-            "       Linux: requires kernel 5.8+, BTF, and sudo.\n"
-            "       macOS: requires libmitmhook.dylib in package.",
-            err=True,
-        )
         return await wrap(host, port, command)
 
 
