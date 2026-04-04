@@ -1,2 +1,83 @@
-[tool.black]
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mitm"
+dynamic = ["version"]
+description = "Man-in-the-middle proxy with customizable options."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "Felipe Faria" }]
+keywords = ["mitm"]
+classifiers = [
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Development Status :: 5 - Production/Stable",
+    "Natural Language :: English",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "PyOpenSSL>=23.1.1",
+    "appdirs>=1.4.4",
+    "click>=8.0",
+]
+
+[project.scripts]
+mitm = "mitm.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/synchronizing/mitm"
+Documentation = "https://synchronizing.github.io/mitm/"
+"Bug Tracker" = "https://github.com/synchronizing/mitm/issues"
+"Source Code" = "https://github.com/synchronizing/mitm/tree/master"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pytest-asyncio",
+    "coveralls",
+    "ruff",
+    "sphinx",
+    "sphinx-copybutton",
+    "sphinx-autobuild",
+    "furo",
+]
+
+[tool.setuptools.packages.find]
+include = ["mitm*"]
+
+[tool.setuptools.package-data]
+mitm = ["templates/*.html"]
+"mitm.intercept.linux" = ["bin/mitm-redirector-*"]
+"mitm.intercept.macos" = ["lib/libmitmhook.dylib"]
+
+[tool.setuptools_scm]
+
+[tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F401", "F403", "F405"]
+"mitm/utils/http/item.py" = ["E501", "E711", "RUF005", "RUF022"]
+"mitm/utils/http/parser.py" = ["E501", "E711", "RUF005", "RUF022"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "ebpf: requires Linux kernel 5.8+ with BTF and sudo",
+    "macos_dylib: requires macOS",
+]
+
+[tool.coverage.run]
+omit = ["mitm/cli.py", "mitm/intercept/linux/ebpf.py", "mitm/intercept/macos/dylib.py"]
+
+[tool.coverage.report]
+omit = ["mitm/cli.py", "mitm/intercept/linux/ebpf.py", "mitm/intercept/macos/dylib.py"]
+fail_under = 85

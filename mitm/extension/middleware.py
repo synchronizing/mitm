@@ -3,12 +3,49 @@ Custom middlware implementation for the MITM proxy.
 """
 
 import logging
+import sys
 
-import httpq
-from toolbox.string.color import bold
-from mitm.core import Connection, Middleware
+from mitm.models import Connection, Middleware
+from mitm.utils import http
+
+DIM = "\x1b[2m"
+BOLD = "\x1b[1m"
+RESET = "\x1b[0m"
+GUTTER = f"{DIM}  ┊{RESET} "
 
 logger = logging.getLogger(__package__)
+
+
+def format_bytes(data: bytes) -> str:
+    """
+    Format raw bytes for human-readable logging.
+
+    Notes:
+        Attempts UTF-8 decode with line-by-line indentation. Falls back to
+        repr for binary data.
+    """
+    try:
+        text = data.decode("utf-8", errors="strict").rstrip("\r\n")
+        lines = text.splitlines()
+        return "\n\t".join(lines)
+    except UnicodeDecodeError:
+        return repr(data)
+
+
+def format_gutter(data: bytes) -> str:
+    """
+    Format raw bytes with gutter prefix for CLI output.
+
+    Notes:
+        Each line is prefixed with a dim `┊` gutter character. Falls back
+        to repr for binary data.
+    """
+    try:
+        text = data.decode("utf-8", errors="strict").rstrip("\r\n")
+        lines = text.splitlines()
+        return "\n".join(f"{GUTTER}{line}" for line in lines)
+    except UnicodeDecodeError:
+        return f"{GUTTER}{data!r}"
 
 
 class Log(Middleware):
@@ -20,29 +57,29 @@ class Log(Middleware):
         self.connection: Connection = None
 
     async def mitm_started(self, host: str, port: int):
-        logger.info(f"MITM server started on {bold(f'{host}:{port}')}.")
+        logger.info(f"MITM server started on {BOLD}{host}:{port}{RESET}.")
 
     async def client_connected(self, connection: Connection):
-        logger.info(f"Client {bold(connection.client)} has connected.")
+        logger.info(f"Client {BOLD}{connection.client}{RESET} has connected.")
 
     async def server_connected(self, connection: Connection):
-        logger.info(f"Client {bold(connection.client)} has connected to server {bold(connection.server)}.")
+        logger.info(
+            f"Client {BOLD}{connection.client}{RESET} has connected to server {BOLD}{connection.server}{RESET}."
+        )
 
     async def client_data(self, connection: Connection, data: bytes) -> bytes:
+        formatted = format_bytes(data)
 
-        # The first request is intended for the 'mitm' server to discover the
-        # destination server.
         if not connection.server:
-            logger.info(f"Client {connection.client} to mitm: \n\n\t{data}\n")
-
-        # All requests thereafter are intended for the destination server.
+            logger.info(f"Client {connection.client} to mitm: \n\n\t{formatted}\n")
         else:  # pragma: no cover
-            logger.info(f"Client {connection.client} to {connection.server}: \n\n\t{data}\n")
+            logger.info(f"Client {connection.client} to {connection.server}: \n\n\t{formatted}\n")
 
         return data
 
     async def server_data(self, connection: Connection, data: bytes) -> bytes:
-        logger.info(f"Server {connection.server} to client {connection.client}: \n\n\t{data}\n")
+        formatted = format_bytes(data)
+        logger.info(f"Server {connection.server} to client {connection.client}: \n\n\t{formatted}\n")
         return data
 
     async def client_disconnected(self, connection: Connection):
@@ -50,6 +87,35 @@ class Log(Middleware):
 
     async def server_disconnected(self, connection: Connection):
         logger.info(f"Server {connection.server} has disconnected.")
+
+
+class CLILog(Middleware):
+    """
+    Middleware for CLI output with gutter-prefixed traffic display.
+    """
+
+    async def mitm_started(self, host: str, port: int):
+        sys.stderr.write(f"{DIM}  ┊ proxy listening on {host}:{port}{RESET}\n{GUTTER}\n")
+
+    async def client_connected(self, connection: Connection):
+        pass
+
+    async def server_connected(self, connection: Connection):
+        sys.stderr.write(f"{GUTTER}{DIM}→ {connection.server}{RESET}\n")
+
+    async def client_data(self, connection: Connection, data: bytes) -> bytes:
+        sys.stderr.write(f"{format_gutter(data)}\n{GUTTER}\n")
+        return data
+
+    async def server_data(self, connection: Connection, data: bytes) -> bytes:
+        sys.stderr.write(f"{format_gutter(data)}\n{GUTTER}\n")
+        return data
+
+    async def client_disconnected(self, connection: Connection):
+        pass
+
+    async def server_disconnected(self, connection: Connection):
+        pass
 
 
 class HTTPLog(Log):  # pragma: no cover
@@ -68,7 +134,7 @@ class HTTPLog(Log):  # pragma: no cover
 
     async def client_data(self, connection: Connection, data: bytes) -> bytes:
 
-        req = httpq.Request.parse(data)
+        req = http.Request.parse(data)
 
         # The first request is intended for the 'mitm' server to discover the
         # destination server.
@@ -82,7 +148,7 @@ class HTTPLog(Log):  # pragma: no cover
         return data
 
     async def server_data(self, connection: Connection, data: bytes) -> bytes:
-        resp = httpq.Response.parse(data)
+        resp = http.Response.parse(data)
         logger.info(f"Server {connection.server} to client {connection.client}: \n\n{resp}\n")
         return data
 

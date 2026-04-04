@@ -1,0 +1,21 @@
+[package]
+name = "mitm-redirector"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "mitm-redirector"
+path = "src/main.rs"
+
+[dependencies]
+aya = { version = "0.13", features = ["async_tokio"] }
+aya-log = "0.2"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+tun = { version = "0.6", features = ["async"] }
+libc = "0.2"
+
+[build-dependencies]
+aya-build = "0.1"

@@ -1,0 +1,79 @@
+........................................................................ [ 45%]
+........................................................................ [ 90%]
+................                                                         [100%]
+=============================== warnings summary ===============================
+mitm/utils/crypto.py:148: 3 warnings
+tests/extension/test_middleware.py: 1 warning
+tests/test_crypto.py: 5 warnings
+tests/test_proxy.py: 2 warnings
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:148: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE, pathlen:0"),
+
+mitm/utils/crypto.py:149: 3 warnings
+tests/extension/test_middleware.py: 1 warning
+tests/test_crypto.py: 5 warnings
+tests/test_proxy.py: 2 warnings
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:149: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
+
+mitm/utils/crypto.py:150: 3 warnings
+tests/extension/test_middleware.py: 1 warning
+tests/test_crypto.py: 5 warnings
+tests/test_proxy.py: 2 warnings
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:150: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    OpenSSL.crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=self.cert),
+
+mitm/utils/crypto.py:146: 3 warnings
+tests/extension/test_middleware.py: 1 warning
+tests/test_crypto.py: 5 warnings
+tests/test_proxy.py: 2 warnings
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:146: DeprecationWarning: This API is deprecated and will be removed in a future version of pyOpenSSL. You should use pyca/cryptography's X.509 APIs instead.
+    self.cert.add_extensions(
+
+tests/test_crypto.py::Test_CertificateAuthority::test_new_X509
+tests/test_crypto.py::Test_CertificateAuthority::test_new_X509
+tests/test_crypto.py::Test_CertificateAuthority::test_new_context
+tests/test_proxy.py::Test_ServeDirect::test_root_returns_html
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:191: DeprecationWarning: CSR support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    req = OpenSSL.crypto.X509Req()
+
+tests/test_crypto.py::Test_CertificateAuthority::test_new_X509
+tests/test_crypto.py::Test_CertificateAuthority::test_new_X509
+tests/test_crypto.py::Test_CertificateAuthority::test_new_context
+tests/test_proxy.py::Test_ServeDirect::test_root_returns_html
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:210: DeprecationWarning: X509Extension support in pyOpenSSL is deprecated. You should use the APIs in cryptography.
+    cert.add_extensions([OpenSSL.crypto.X509Extension(b"subjectAltName", False, hosts)])
+
+tests/test_crypto.py::Test_CertificateAuthority::test_new_X509
+tests/test_crypto.py::Test_CertificateAuthority::test_new_X509
+tests/test_crypto.py::Test_CertificateAuthority::test_new_context
+tests/test_proxy.py::Test_ServeDirect::test_root_returns_html
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:210: DeprecationWarning: This API is deprecated and will be removed in a future version of pyOpenSSL. You should use pyca/cryptography's X.509 APIs instead.
+    cert.add_extensions([OpenSSL.crypto.X509Extension(b"subjectAltName", False, hosts)])
+
+tests/test_crypto.py::Test_CertificateAuthority::test_new_context
+tests/test_proxy.py::Test_ServeDirect::test_root_returns_html
+  /Users/felipe/Desktop/mitm/mitm/utils/crypto.py:254: DeprecationWarning: ssl.PROTOCOL_TLS is deprecated
+    context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+______________ coverage: platform darwin, python 3.12.13-final-0 _______________
+
+Name                           Stmts   Miss  Cover   Missing
+------------------------------------------------------------
+mitm/__init__.py                  16      0   100%
+mitm/cli.py                       40     40     0%   5-109
+mitm/extension/__init__.py         3      0   100%
+mitm/extension/middleware.py      62      0   100%
+mitm/extension/protocol.py        78     32    59%   33, 46-47, 95, 144, 168-182, 194-223
+mitm/models.py                    31      0   100%
+mitm/proxy.py                    116     20    83%   138-143, 230, 235-275
+mitm/utils/__init__.py             1      0   100%
+mitm/utils/crypto.py              99      0   100%
+mitm/utils/http/__init__.py        2      0   100%
+mitm/utils/http/item.py          149      4    97%   93, 175, 223, 316
+mitm/utils/http/parser.py        131      4    97%   277, 280, 333, 336
+------------------------------------------------------------
+TOTAL                            728    100    86%
+160 passed, 58 warnings in 1.69s

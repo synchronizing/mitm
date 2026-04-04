@@ -1,127 +1,111 @@
-# 👨‍💻 mitm
+# mitm
 
 <p align="center">
   <a href="https://www.pepy.tech/projects/mitm">
     <img src="https://static.pepy.tech/badge/mitm">
   </a>
-
   <a href="https://github.com/synchronizing/mitm/actions?query=workflow%3ABuild">
     <img src="https://github.com/synchronizing/mitm/workflows/Build/badge.svg?branch=master&event=push">
   </a>
-
   <a href="https://synchronizing.github.io/mitm/">
     <img src="https://github.com/synchronizing/mitm/actions/workflows/docs-publish.yaml/badge.svg">
   </a>
-
   <a href="https://coveralls.io/github/synchronizing/mitm?branch=master">
     <img src="https://coveralls.io/repos/github/synchronizing/mitm/badge.svg?branch=master">
   </a>
-
   <a href="https://opensource.org/licenses/MIT">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg">
   </a>
 </p>
 
-A customizable man-in-the-middle TCP proxy with support for HTTP & HTTPS.
+Man-in-the-middle proxy for HTTP & HTTPS. Wrap any command, see every request.
 
-## Installing
+## Install
 
 ```
 pip install mitm
 ```
 
-Note that OpenSSL 1.1.1 or greater is required.
+## Quick Start
 
-## Documentation
+Wrap a command and watch its traffic:
 
-Documentation can be found [**here**](https://synchronizing.github.io/mitm/). 
+```
+$ mitm -- curl https://httpbin.org/ip
+  ┊ proxy listening on 127.0.0.1:8888
+  ┊
+  ┊ CONNECT httpbin.org:443 HTTP/1.1
+  ┊ Host: httpbin.org:443
+  ┊ User-Agent: curl/8.7.1
+  ┊ Proxy-Connection: Keep-Alive
+  ┊
+  ┊ → 3.231.81.72:443
+  ┊ GET /ip HTTP/1.1
+  ┊ Host: httpbin.org
+  ┊ User-Agent: curl/8.7.1
+  ┊ Accept: */*
+  ┊
+  ┊ HTTP/1.1 200 OK
+  ┊ Content-Type: application/json
+  ┊ Content-Length: 33
+  ┊
+{
+  "origin": "108.46.224.142"
+}
+```
 
-## Using
+The `┊` lines are intercepted proxy traffic (stderr). Everything else is the command's normal output (stdout). Pipe-safe.
+
+`mitm` sets `HTTP_PROXY`, `HTTPS_PROXY`, and the CA cert env vars automatically on the child process — nothing to configure.
+
+## CLI
+
+```bash
+mitm                                   # standalone proxy on :8888
+mitm -p 9999                           # custom port
+mitm -- curl https://example.com       # wrap a command
+mitm -- python my_script.py            # wrap a script
+```
+
+## Certificates
+
+Browse to `http://localhost:8888` while the proxy is running to download and install the CA certificate. Platform-specific formats and instructions are on the page.
+
+## Library
 
 Using the default values for the `MITM` class:
 
 ```python
-from mitm import MITM, protocol, middleware, crypto
+from mitm import MITM, CertificateAuthority
+from mitm.extension import protocol, middleware
 
 mitm = MITM(
     host="127.0.0.1",
     port=8888,
-    protocols=[protocol.HTTP], 
-    middlewares=[middleware.Log], # middleware.HTTPLog used for the example below.
-    certificate_authority = crypto.CertificateAuthority()
+    protocols=[protocol.HTTP],
+    middlewares=[middleware.Log],
+    certificate_authority=CertificateAuthority(),
 )
 mitm.run()
 ```
 
-This will start a proxy on port `8888` that is capable of intercepting all HTTP traffic (with support for SSL/TLS) and log all activity.
+The proxy can also be used as an async context manager:
+
+```python
+async with MITM() as mitm:
+    ...
+```
 
 ## Extensions
 
-`mitm` can be customized through the implementations of middlewares and protocols. 
+`mitm` is customizable through middlewares and protocols.
 
-[Middlewares](https://synchronizing.github.io/mitm/docs/internals.html#mitm.core.Middleware) are event-driven hooks that are called when connections are made, requests are sent, responses are received, and connections are closed. 
+[Middlewares](https://synchronizing.github.io/mitm/docs/internals.html#mitm.models.Middleware) are event-driven hooks called when connections are made, requests are sent, responses are received, and connections are closed.
 
-[Protocols](https://synchronizing.github.io/mitm/docs/internals.html#mitm.core.Protocol) are implementations on _how_ the data flows between the client and server, and is used to implement [application layer](https://en.wikipedia.org/wiki/Application_layer) protocols and/or more complex extensions.
+[Protocols](https://synchronizing.github.io/mitm/docs/internals.html#mitm.models.Protocol) are implementations on _how_ data flows between client and server, used to implement [application layer](https://en.wikipedia.org/wiki/Application_layer) protocols.
 
-## Example
+See the full [documentation](https://synchronizing.github.io/mitm/) for details.
 
-Using the example above we can send a request to the server via another script:
+## Agent Skill
 
-```python
-import requests
-
-proxies = {"http": "http://127.0.0.1:8888", "https": "http://127.0.0.1:8888"}
-requests.get("https://httpbin.org/anything", proxies=proxies, verify=False)
-```
-
-Which will lead to the following being logged where `mitm` is running in:
-
-```
-2022-06-08 15:07:10 INFO     MITM server started on 127.0.0.1:8888.
-2022-06-08 15:07:11 INFO     Client 127.0.0.1:64638 has connected.
-2022-06-08 15:07:11 INFO     Client 127.0.0.1:64638 to mitm: 
-
-→ CONNECT httpbin.org:443 HTTP/1.0
-
-2022-06-08 15:07:12 INFO     Client 127.0.0.1:64638 has connected to server 34.206.80.189:443.
-2022-06-08 15:07:12 INFO     Client 127.0.0.1:64638 to 34.206.80.189:443: 
-
-→ GET /anything HTTP/1.1
-→ Host: httpbin.org
-→ User-Agent: python-requests/2.26.0
-→ Accept-Encoding: gzip, deflate
-→ Accept: */*
-→ Connection: keep-alive
-
-2022-06-08 15:07:12 INFO     Server 34.206.80.189:443 to client 127.0.0.1:64638: 
-
-← HTTP/1.1 200 OK
-← Date: Wed, 08 Jun 2022 19:07:12 GMT
-← Content-Type: application/json
-← Content-Length: 396
-← Connection: keep-alive
-← Server: gunicorn/19.9.0
-← Access-Control-Allow-Origin: *
-← Access-Control-Allow-Credentials: true
-← 
-← {
-←   "args": {}, 
-←   "data": "", 
-←   "files": {}, 
-←   "form": {}, 
-←   "headers": {
-←     "Accept": "*/*", 
-←     "Accept-Encoding": "gzip, deflate", 
-←     "Host": "httpbin.org", 
-←     "User-Agent": "python-requests/2.26.0", 
-←     "X-Amzn-Trace-Id": "Root=1-62a0f360-774052c80b60f4ea049f5665"
-←   }, 
-←   "json": null, 
-←   "method": "GET", 
-←   "origin": "xxx.xxx.xxx.xxx", 
-←   "url": "https://httpbin.org/anything"
-← }
-
-2022-06-08 15:07:27 INFO     Server 34.206.80.189:443 has disconnected.
-2022-06-08 15:07:27 INFO     Client 127.0.0.1:64638 has disconnected.
-```
+An agent skill is available at [`.agents/skills/mitm/`](https://github.com/synchronizing/mitm/tree/master/.agents/skills/mitm) for AI coding agents that support the [SKILL.md](https://agentskills.io) format.

@@ -1,0 +1,77 @@
+name: Build Artifacts
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build-linux-x86_64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-src
+      - name: Install bpf-linker
+        run: cargo install bpf-linker
+      - name: Install clang and llvm
+        run: sudo apt-get install -y clang llvm libbpf-dev linux-headers-$(uname -r)
+      - name: Build redirector
+        working-directory: mitm/intercept/linux/redirector
+        run: cargo build --release
+      - name: Copy binary
+        run: |
+          mkdir -p mitm/intercept/linux/bin
+          cp mitm/intercept/linux/redirector/target/release/mitm-redirector \
+             mitm/intercept/linux/bin/mitm-redirector-linux-x86_64
+          chmod +x mitm/intercept/linux/bin/mitm-redirector-linux-x86_64
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mitm-redirector-linux-x86_64
+          path: mitm/intercept/linux/bin/mitm-redirector-linux-x86_64
+
+  build-linux-arm64:
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-src
+      - name: Install bpf-linker
+        run: cargo install bpf-linker
+      - name: Install clang and llvm
+        run: sudo apt-get install -y clang llvm libbpf-dev linux-headers-$(uname -r)
+      - name: Build redirector
+        working-directory: mitm/intercept/linux/redirector
+        run: cargo build --release
+      - name: Copy binary
+        run: |
+          mkdir -p mitm/intercept/linux/bin
+          cp mitm/intercept/linux/redirector/target/release/mitm-redirector \
+             mitm/intercept/linux/bin/mitm-redirector-linux-arm64
+          chmod +x mitm/intercept/linux/bin/mitm-redirector-linux-arm64
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mitm-redirector-linux-arm64
+          path: mitm/intercept/linux/bin/mitm-redirector-linux-arm64
+
+  build-macos-universal:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal dylib
+        working-directory: mitm/intercept/macos/hook
+        run: make
+      - name: Verify universal binary
+        run: file mitm/intercept/macos/lib/libmitmhook.dylib
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmitmhook-macos-universal
+          path: mitm/intercept/macos/lib/libmitmhook.dylib

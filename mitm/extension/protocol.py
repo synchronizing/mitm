@@ -1,14 +1,50 @@
 """
 Custom protocol implementations for the MITM proxy.
 """
+
 import asyncio
 import ssl
 from typing import Tuple
 
-from httpq import Request
-from toolbox.asyncio.streams import tls_handshake
+from mitm.models import Connection, Flow, Host, InvalidProtocol, Protocol
+from mitm.utils.http import Request
 
-from mitm.core import Connection, Flow, Host, InvalidProtocol, Protocol
+
+async def tls_handshake(
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    ssl_context: ssl.SSLContext | None = None,
+    server_side: bool = False,
+):
+    """
+    Perform a TLS handshake on an existing connection.
+
+    Notes:
+        Upgrades an existing `asyncio.StreamReader` and `asyncio.StreamWriter` to TLS
+        by calling `loop.start_tls()` and swapping the underlying transport.
+
+    Args:
+        reader: The reader of the connection.
+        writer: The writer of the connection.
+        ssl_context: The SSL context to use. Defaults to `ssl.create_default_context()`.
+        server_side: Whether the handshake is server-side.
+    """
+    if not server_side and not ssl_context:
+        ssl_context = ssl.create_default_context()
+
+    transport = writer.transport
+    protocol = transport.get_protocol()
+
+    loop = asyncio.get_event_loop()
+    new_transport = await loop.start_tls(
+        transport=transport,
+        protocol=protocol,
+        sslcontext=ssl_context,
+        server_side=server_side,
+    )
+
+    reader._transport = new_transport
+    writer._transport = new_transport
 
 
 class HTTP(Protocol):
@@ -46,7 +82,7 @@ class HTTP(Protocol):
         """
         try:
             request = Request.parse(data)
-        except:  # pragma: no cover
+        except Exception:  # pragma: no cover
             raise InvalidProtocol  # pylint: disable=raise-missing-from
 
         # Deal with 'CONNECT'.
@@ -61,7 +97,6 @@ class HTTP(Protocol):
 
         # Deal with any other HTTP method.
         elif request.method:
-
             # Get the hostname and port.
             if "Host" not in request.headers:
                 raise InvalidProtocol
@@ -90,7 +125,6 @@ class HTTP(Protocol):
 
         # Generate certificate if TLS.
         if tls:
-
             # Accept client connection.
             connection.client.writer.write(b"HTTP/1.1 200 OK\r\n\r\n")
             await connection.client.writer.drain()
@@ -137,7 +171,6 @@ class HTTP(Protocol):
             and not connection.server.reader.at_eof()
             and (self.keep_alive or run_once)
         ):
-
             # Keeps trying to relay data until the connection closes.
             event = asyncio.Event()
             await asyncio.gather(

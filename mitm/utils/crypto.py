@@ -2,16 +2,34 @@
 Cryptography functionalities.
 """
 
-from functools import lru_cache
 import random
+import socket
 import ssl
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import OpenSSL
-from toolbox.sockets.ip import is_ip
 
 from mitm import __data__
+
+
+def is_ip(host: str) -> bool:
+    """
+    Check if the given host is a valid IPv4 address.
+
+    Args:
+        host: The host to check.
+
+    Returns:
+        True if the host is a valid IPv4 address, False otherwise.
+    """
+    try:
+        socket.inet_aton(host)
+        return True
+    except socket.error:
+        return False
+
 
 LRU_MAX_SIZE = 1024
 """

@@ -1,8 +1,8 @@
 import asyncio
+
 import pytest
 
-
-from .conftest import HOST, PORT, BUFFER_SIZE
+from .conftest import BUFFER_SIZE, HOST, PORT
 
 
 @pytest.mark.asyncio
