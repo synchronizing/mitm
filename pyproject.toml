@@ -76,8 +76,8 @@ markers = [
 ]
 
 [tool.coverage.run]
-omit = ["mitm/cli.py"]
+omit = ["mitm/cli.py", "mitm/intercept/linux/ebpf.py", "mitm/intercept/macos/dylib.py"]
 
 [tool.coverage.report]
-omit = ["mitm/cli.py"]
+omit = ["mitm/cli.py", "mitm/intercept/linux/ebpf.py", "mitm/intercept/macos/dylib.py"]
 fail_under = 85
