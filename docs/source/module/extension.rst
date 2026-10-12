@@ -13,10 +13,10 @@ extension
 Middlewares
 ***********
 
+.. autoclass:: mitm.extension.middleware.HTTPLog
+
 .. autoclass:: mitm.extension.middleware.Log
 
-.. autoclass:: mitm.extension.middleware.HTTPLog(Log)
-    
 ----
 
 Protocols

@@ -25,15 +25,15 @@ Core
 
     .. attribute:: mitm_managed
 
-        The `mitm_managed` attribute is used to determine whether the `mitm` is responsible for closing the connection with the host. If `mitm_managed` is True, the `mitm` will close the connection with the host when it is done with it. If `mitm_managed` is set to False, the `mitm` will not close the connection with the host, and instead, the developer must close the connection with the host manually. This is useful for situations where the `mitm` is running as a seperate utility and the developer wants to keep the connection open with the host after the `mitm` is done with it.
+        The `mitm_managed` attribute is used to determine whether the `mitm` is responsible for closing the connection with the host. If `mitm_managed` is True, the `mitm` will close the connection with the host when it is done with it. If `mitm_managed` is set to False, the `mitm` will not close the connection with the host, and instead, the developer must close the connection with the host manually. This is useful for situations where the `mitm` is running as a separate utility and the developer wants to keep the connection open with the host after the `mitm` is done with it.
 
-    .. attribute:: ip
+    .. attribute:: host
 
-        The IP address of the host.
+        The IP address of the host, or `None` if not connected.
 
     .. attribute:: port
 
-        The port of the host.
+        The port of the host, or `None` if not connected.
 
     `Host` is a `dataclass <https://docs.python.org/3/library/dataclasses.html>`_ that is defined like so:
 
@@ -41,9 +41,9 @@ Core
 
         @dataclass
         class Host:
-            reader: Optional[asyncio.StreamReader] = None
-            writer: Optional[asyncio.StreamWriter] = None
-            mitm_managed: Optional[bool] = True
+            reader: asyncio.StreamReader | None = None
+            writer: asyncio.StreamWriter | None = None
+            mitm_managed: bool = True
 
 .. class:: mitm.models.Connection
 
@@ -69,7 +69,7 @@ Core
         class Connection:
             client: Host
             server: Host
-            protocol: Optional[Protocol] = None
+            protocol: Protocol | None = None
 
 ----
 
@@ -80,55 +80,53 @@ Extensions
 
     Event-driven hook extension for the `mitm`.
 
-    A middleware is a class that is used to extend the `mitm` framework by allowing event-driven hooks to be added to the `mitm` and executed when the appropriate event occurs. Built-in middlewares can be found in the `mitm.middleware` module.
+    Subclass it and override the hooks you need; the rest do nothing. Built-in middlewares can be found in the `mitm.extension.middleware` module.
 
     .. method:: mitm_started(host: str, port: int)
         :async:
-        :staticmethod:
 
         Called when the `mitm` server boots-up.
 
     .. method:: client_connected(connection: Connection)
         :async:
-        :staticmethod:
 
         Called when a client connects to the `mitm` server. Note that the `mitm.models.Connection` object is not fully initialized yet, and only contains a valid client `mitm.models.Host`.
 
     .. method:: server_connected(connection: Connection)
         :async:
-        :staticmethod:
 
         Called when the `mitm` connects with the destination server. At this point the `mitm.models.Connection` object is fully initialized.
 
     .. method:: client_data(connection: Connection, data: bytes) -> bytes
         :async:
-        :staticmethod:
-        
-        Raw TLS/SSL handshake is not sent through this method. Everything should be decrypted beforehand.
+
+        Called when the `mitm` receives data from the client. The first call for a connection holds the client's initial request (e.g. ``CONNECT``), before the server is connected. Raw TLS is never passed to this method; everything is decrypted beforehand.
 
         Note:
             This method **must** return back data. Modified or not.
 
     .. method:: server_data(connection: Connection, data: bytes) -> bytes
         :async:
-        :staticmethod:
 
         Called when the `mitm` receives data from the destination server. Data that comes through this hook can be modified and returned to the `mitm` as new data to be sent to the client.
 
         Note:
-            This method **must** return back data. Modified or not.  
+            This method **must** return back data. Modified or not.
 
     .. method:: client_disconnected(connection: Connection)
         :async:
-        :staticmethod:
 
         Called when the client disconnects.
 
     .. method:: server_disconnected(connection: Connection)
         :async:
-        :staticmethod:
 
         Called when the server disconnects.
+
+    .. method:: connection_error(connection: Connection, error: Exception)
+        :async:
+
+        Called when a connection fails: the server is unreachable, the client rejected the `mitm` certificate, or no protocol matched the client's data. The disconnect hooks are still called afterwards.
 
 .. class:: mitm.models.Protocol
 
@@ -144,26 +142,21 @@ Extensions
 
     .. attribute:: timeout
 
-            The timeout to use when reading data.
-
-    .. attribute:: keep_alive
-
-            Whether or not to keep the connection alive.
+            Seconds to wait when connecting to the server.
 
     Note that the attributes above must be set per-protocol basis.
 
-
-    .. method:: resolve(connection: Connection, data: bytes) -> Tuple[str, int, bool]
+    .. method:: resolve(connection: Connection, data: bytes) -> tuple[str, int, bool]
         :async:
 
-        Resolves the destination of the connection. Returns a tuple containing the host, port, and bool that indicates if the connection is encrypted.
+        Resolves the destination of the connection. Returns a tuple containing the host, port, and bool that indicates if the connection is encrypted. Raises `mitm.models.InvalidProtocol` if the data does not belong to this protocol, so the next protocol is tried.
 
-    .. method:: connect(connection: Connection, host: str, port: int, data: bytes)
+    .. method:: connect(connection: Connection, host: str, port: int, tls: bool, data: bytes)
         :async:
 
-        Attempts to connect to destination server using the given data. Returns `True` if the connection was successful, raises `InvalidProtocol` if the connection failed.
-        
+        Connects to the destination server and sets ``connection.server``. Raises `mitm.models.InvalidProtocol` if the data does not belong to this protocol.
+
     .. method:: handle(connection: Connection)
         :async:
 
-        Handles the connection between a client and a server.
+        Relays data between the client and the server until either disconnects.

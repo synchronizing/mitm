@@ -1,159 +1,256 @@
 """
-Custom middlware implementation for the MITM proxy.
+Custom middleware implementations for the MITM proxy.
 """
 
+from __future__ import annotations
+
+import datetime
+import json
 import logging
+import os
 import sys
+from typing import Any, TextIO
 
+from mitm import http
 from mitm.models import Connection, Middleware
-from mitm.utils import http
 
-DIM = "\x1b[2m"
-BOLD = "\x1b[1m"
-RESET = "\x1b[0m"
-GUTTER = f"{DIM}  ┊{RESET} "
-
-logger = logging.getLogger(__package__)
-
-
-def format_bytes(data: bytes) -> str:
-    """
-    Format raw bytes for human-readable logging.
-
-    Notes:
-        Attempts UTF-8 decode with line-by-line indentation. Falls back to
-        repr for binary data.
-    """
-    try:
-        text = data.decode("utf-8", errors="strict").rstrip("\r\n")
-        lines = text.splitlines()
-        return "\n\t".join(lines)
-    except UnicodeDecodeError:
-        return repr(data)
-
-
-def format_gutter(data: bytes) -> str:
-    """
-    Format raw bytes with gutter prefix for CLI output.
-
-    Notes:
-        Each line is prefixed with a dim `┊` gutter character. Falls back
-        to repr for binary data.
-    """
-    try:
-        text = data.decode("utf-8", errors="strict").rstrip("\r\n")
-        lines = text.splitlines()
-        return "\n".join(f"{GUTTER}{line}" for line in lines)
-    except UnicodeDecodeError:
-        return f"{GUTTER}{data!r}"
+logger = logging.getLogger("mitm")
 
 
 class Log(Middleware):
     """
-    Middleware that logs all events to the console.
-    """
-
-    def __init__(self):
-        self.connection: Connection = None
-
-    async def mitm_started(self, host: str, port: int):
-        logger.info(f"MITM server started on {BOLD}{host}:{port}{RESET}.")
-
-    async def client_connected(self, connection: Connection):
-        logger.info(f"Client {BOLD}{connection.client}{RESET} has connected.")
-
-    async def server_connected(self, connection: Connection):
-        logger.info(
-            f"Client {BOLD}{connection.client}{RESET} has connected to server {BOLD}{connection.server}{RESET}."
-        )
-
-    async def client_data(self, connection: Connection, data: bytes) -> bytes:
-        formatted = format_bytes(data)
-
-        if not connection.server:
-            logger.info(f"Client {connection.client} to mitm: \n\n\t{formatted}\n")
-        else:  # pragma: no cover
-            logger.info(f"Client {connection.client} to {connection.server}: \n\n\t{formatted}\n")
-
-        return data
-
-    async def server_data(self, connection: Connection, data: bytes) -> bytes:
-        formatted = format_bytes(data)
-        logger.info(f"Server {connection.server} to client {connection.client}: \n\n\t{formatted}\n")
-        return data
-
-    async def client_disconnected(self, connection: Connection):
-        logger.info(f"Client {connection.client} has disconnected.")
-
-    async def server_disconnected(self, connection: Connection):
-        logger.info(f"Server {connection.server} has disconnected.")
-
-
-class CLILog(Middleware):
-    """
-    Middleware for CLI output with gutter-prefixed traffic display.
+    Logs every event and every chunk of raw data to the ``mitm`` logger, at ``INFO``
+    level. Configure `logging` to see the output.
     """
 
     async def mitm_started(self, host: str, port: int):
-        sys.stderr.write(f"{DIM}  ┊ proxy listening on {host}:{port}{RESET}\n{GUTTER}\n")
+        logger.info("MITM server started on %s:%d.", host, port)
 
     async def client_connected(self, connection: Connection):
-        pass
+        logger.info("Client %s has connected.", connection.client)
 
     async def server_connected(self, connection: Connection):
-        sys.stderr.write(f"{GUTTER}{DIM}→ {connection.server}{RESET}\n")
+        logger.info("Client %s has connected to server %s.", connection.client, connection.server)
 
     async def client_data(self, connection: Connection, data: bytes) -> bytes:
-        sys.stderr.write(f"{format_gutter(data)}\n{GUTTER}\n")
+        destination = connection.server if connection.server else "mitm"
+        logger.info("Client %s to %s:\n\n\t%s\n", connection.client, destination, indent(data))
         return data
 
     async def server_data(self, connection: Connection, data: bytes) -> bytes:
-        sys.stderr.write(f"{format_gutter(data)}\n{GUTTER}\n")
+        logger.info("Server %s to client %s:\n\n\t%s\n", connection.server, connection.client, indent(data))
         return data
 
     async def client_disconnected(self, connection: Connection):
-        pass
+        logger.info("Client %s has disconnected.", connection.client)
 
     async def server_disconnected(self, connection: Connection):
-        pass
+        logger.info("Server %s has disconnected.", connection.server)
+
+    async def connection_error(self, connection: Connection, error: Exception):
+        logger.warning("Connection from client %s failed: %s", connection.client, error)
 
 
-class HTTPLog(Log):  # pragma: no cover
+class HTTPLog(Middleware):
     """
-    Middlewares that logs all HTTP events to the console with pretty-print.
+    Logs every HTTP request and response that passes through the proxy.
 
-    Notes:
-        Do not use this middleware if there is a chance that the request or response
-        will not be HTTP. This should only be used if you have control of all the
-        requests coming into the proxy. If you are setting your computer's proxy
-        settings to `mitm` you should not use this middleware as things will not work.
+    Each exchange is written once its response completes, or its connection closes, so
+    concurrent requests never interleave. By default it is one line per exchange:
+
+    .. code-block:: text
+
+          ┊ GET https://example.com/ → 200 OK (text/html, 1.3 KB, 85 ms)
+
+    Args:
+        stream: Text stream to write to. Defaults to `sys.stderr`.
+        verbose: Also write headers and bodies.
+        json: Write one JSON object per exchange (JSON Lines) instead of text.
+        max_body: Maximum bytes of each body to keep, or `None` for no limit.
+
+    Attributes:
+        count: Number of exchanges written.
     """
 
-    def __init__(self):  # pylint: disable=super-init-not-called
-        self.connection: Connection = None
+    gutter = "  ┊ "
+
+    def __init__(
+        self,
+        stream: TextIO | None = None,
+        *,
+        verbose: bool = False,
+        json: bool = False,
+        max_body: int | None = 4096,
+    ):
+        self.stream = stream
+        self.verbose = verbose
+        self.json = json
+        self.max_body = max_body
+        self.count = 0
+        self.sessions: dict[int, http.Session] = {}
 
     async def client_data(self, connection: Connection, data: bytes) -> bytes:
+        session = self.sessions.get(id(connection))
+        try:
+            if session is None:
+                limit = self.max_body if self.verbose or self.json else 0
+                if data.startswith(b"CONNECT "):
+                    connect = http.parse_head(data.partition(b"\r\n\r\n")[0])
+                    session = http.Session("https", authority=connect.target, limit=limit)
+                    session.connect = connect
+                    self.sessions[id(connection)] = session
+                    return data
+                session = self.sessions[id(connection)] = http.Session("http", limit=limit)
+            session.client(data)
+        except ValueError:  # Not HTTP; stop parsing this connection.
+            if session:
+                session.requests.tunnel = session.responses.tunnel = True
+        return data
 
-        req = http.Request.parse(data)
+    async def server_data(self, connection: Connection, data: bytes) -> bytes:
+        if session := self.sessions.get(id(connection)):
+            try:
+                self.write(*session.server(data))
+            except ValueError:
+                session.requests.tunnel = session.responses.tunnel = True
+        return data
 
-        # The first request is intended for the 'mitm' server to discover the
-        # destination server.
-        if not connection.server:
-            logger.info(f"Client {connection.client} to mitm: \n\n{req}\n")
+    async def server_disconnected(self, connection: Connection):
+        if session := self.sessions.get(id(connection)):
+            self.write(*session.close())
 
-        # All requests thereafter are intended for the destination server.
+    async def client_disconnected(self, connection: Connection):
+        if session := self.sessions.pop(id(connection), None):
+            self.write(*session.close())
+
+    async def connection_error(self, connection: Connection, error: Exception):
+        session = self.sessions.get(id(connection))
+        exchanges = session.close() if session else []
+        if not exchanges:
+            request = session.connect if session else None
+            exchanges = [http.Exchange(request, url=request.target if request else str(connection.client))]
+        for exchange in exchanges:
+            exchange.error = str(error)
+        self.write(*exchanges)
+
+    def write(self, *exchanges: http.Exchange):
+        """
+        Writes exchanges to the stream.
+        """
+        if not exchanges:
+            return
+        stream = self.stream or sys.stderr
+        if self.json:
+            text = "".join(json.dumps(self.record(exchange), ensure_ascii=False) + "\n" for exchange in exchanges)
         else:
-            logger.info(f"Client {connection.client} to {connection.server}: \n\n{req}\n")
+            color = stream.isatty() and not os.environ.get("NO_COLOR")
+            gutter = f"\x1b[2m{self.gutter}\x1b[0m" if color else self.gutter
+            text = "".join(f"{gutter}{line}".rstrip() + "\n" for e in exchanges for line in self.format(e))
+        stream.write(text)
+        stream.flush()
+        self.count += len(exchanges)
 
-        return data
+    def format(self, exchange: http.Exchange) -> list[str]:
+        """
+        Returns the lines of text describing `exchange`.
+        """
+        request, response = exchange.request, exchange.response
+        title = f"{request.method} {exchange.url}" if request else exchange.url
+        if exchange.error:
+            return [f"{title} ✗ {exchange.error}"]
+        if not self.verbose:
+            return [f"{title} → {self.summary(exchange)}"]
 
-    async def server_data(self, connection: Connection, data: bytes) -> bytes:
-        resp = http.Response.parse(data)
-        logger.info(f"Server {connection.server} to client {connection.client}: \n\n{resp}\n")
-        return data
+        assert request is not None
+        lines = [f"{title} {request.version}", *(f"{name}: {value}" for name, value in request.headers)]
+        lines += ["", *self.body(request), ""] if request.size else [""]
+        if response:
+            lines += [f"{response.line} ({self.summary(exchange, status=False)})"]
+            lines += [f"{name}: {value}" for name, value in response.headers]
+            lines += ["", *self.body(response), ""] if response.size else [""]
+        else:
+            lines += ["(no response)", ""]
+        return lines
 
-    async def client_disconnected(self, connection: Connection):
-        logger.info(f"Client {connection.client} has disconnected.")
+    def summary(self, exchange: http.Exchange, status: bool = True) -> str:
+        """
+        Returns a short description of the response, e.g. ``200 OK (text/html, 1.3 KB, 85 ms)``.
+        """
+        response = exchange.response
+        if response is None:
+            return "(no response)"
+        details = [(response.header("Content-Type") or "").split(";")[0], format_size(response.size)]
+        if exchange.ended:
+            details.append(f"{(exchange.ended - exchange.started) * 1000:.0f} ms")
+        if not response.complete:
+            details.append("incomplete")
+        text = ", ".join(detail for detail in details if detail)
+        return f"{response.status} {response.reason} ({text})" if status else text
 
-    async def server_disconnected(self, connection: Connection):
-        logger.info(f"Server {connection.server} has disconnected.")
+    def body(self, message: http.Message) -> list[str]:
+        """
+        Returns the lines of text displaying the body of `message`.
+        """
+        text, truncated = self.decode(message)
+        if text is None:
+            kind = message.header("Content-Encoding") or message.header("Content-Type") or "unknown type"
+            return [f"<{format_size(message.size)} binary, {kind}>"]
+        return [*text.splitlines(), *([f"… truncated ({format_size(message.size)} received)"] if truncated else [])]
+
+    def decode(self, message: http.Message) -> tuple[str | None, bool]:
+        """
+        Returns the body of `message` as text (or `None` if binary), and whether it was truncated.
+        """
+        text = http.decode(message, self.max_body)
+        limited = self.max_body is not None and text is not None and len(text.encode()) >= self.max_body
+        return text, message.truncated or limited
+
+    def record(self, exchange: http.Exchange) -> dict[str, Any]:
+        """
+        Returns `exchange` as a JSON-serializable dictionary.
+        """
+        started = datetime.datetime.fromtimestamp(exchange.started, datetime.UTC)
+        request, response = exchange.request, exchange.response
+        return {
+            "time": started.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+            "duration_ms": round((exchange.ended - exchange.started) * 1000) if exchange.ended else None,
+            "request": request
+            and {
+                "method": request.method,
+                "url": exchange.url,
+                "version": request.version,
+                **self.content(request),
+            },
+            "response": response
+            and {
+                "status": response.status,
+                "reason": response.reason,
+                "version": response.version,
+                **self.content(response),
+            },
+            "error": exchange.error,
+        }
+
+    def content(self, message: http.Message) -> dict[str, Any]:
+        text, truncated = self.decode(message)
+        return {
+            "headers": [list(header) for header in message.headers],
+            "body": text,
+            "body_size": message.size,
+            "truncated": truncated,
+        }
+
+
+def indent(data: bytes) -> str:
+    try:
+        return "\n\t".join(data.decode("utf-8").rstrip("\r\n").splitlines())
+    except UnicodeDecodeError:
+        return repr(data)
+
+
+def format_size(size: int) -> str:
+    for unit in ("B", "KB", "MB"):
+        if size < 1000 or unit == "MB":
+            return f"{size} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1000
+    return ""  # pragma: no cover

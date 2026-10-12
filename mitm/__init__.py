@@ -1,4 +1,6 @@
 """
+Man-in-the-middle proxy for HTTP and HTTPS.
+
 Github: https://github.com/synchronizing/mitm
 Docs: https://synchronizing.github.io/mitm/
 """
@@ -9,34 +11,40 @@ __project__ = "mitm"
 import pathlib
 from importlib import metadata
 
-import appdirs
+import platformdirs
 
-__version__ = metadata.version(__project__)
-__data__ = pathlib.Path(appdirs.user_data_dir(__package__, __author__))
+try:
+    __version__ = metadata.version(__project__)
+except metadata.PackageNotFoundError:  # pragma: no cover
+    __version__ = "0.0.0"
 
-import logging
-import sys
+__data__ = pathlib.Path(platformdirs.user_data_dir(__project__, __author__))
+"""
+Directory where the certificate authority (``mitm.pem`` and ``mitm.key``) is stored.
+"""
 
-logging.basicConfig(
-    stream=sys.stdout,
-    format="%(asctime)s %(levelname)-8s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-)
-
-from mitm.extension import *
-from mitm.models import *
-from mitm.proxy import *
-from mitm.utils import crypto
-from mitm.utils.crypto import *
+from mitm import crypto, http  # noqa: E402
+from mitm.crypto import CertificateAuthority  # noqa: E402
+from mitm.extension import middleware, protocol  # noqa: E402
+from mitm.extension.middleware import HTTPLog, Log  # noqa: E402
+from mitm.extension.protocol import HTTP  # noqa: E402
+from mitm.models import Connection, Flow, Host, InvalidProtocol, Middleware, Protocol  # noqa: E402
+from mitm.proxy import MITM  # noqa: E402
 
 __all__ = [
+    "HTTP",
     "MITM",
     "CertificateAuthority",
     "Connection",
     "Flow",
+    "HTTPLog",
     "Host",
     "InvalidProtocol",
+    "Log",
     "Middleware",
     "Protocol",
+    "crypto",
+    "http",
+    "middleware",
+    "protocol",
 ]

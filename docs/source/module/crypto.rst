@@ -2,7 +2,6 @@
 crypto
 ######
 
-
 .. code-block:: python
 
     from mitm import crypto
@@ -11,14 +10,10 @@ crypto
 
 ----
 
-.. automethod:: mitm.crypto.new_RSA
-
-.. automethod:: mitm.crypto.new_X509
-
-----
-
 .. autodata:: mitm.crypto.LRU_MAX_SIZE
     :annotation:
+
+.. autofunction:: mitm.crypto.new_key
 
 .. autoclass:: mitm.crypto.CertificateAuthority
     :members:

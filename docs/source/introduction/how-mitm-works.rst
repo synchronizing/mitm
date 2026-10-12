@@ -81,7 +81,7 @@ All of the above is important to have a general understanding of to comprehend h
 Proxies
 -------
 
-A proxy works by sitting between the client and destination server and is typically used to concel the IP address of a client. A normal proxy would be used either by setting its settings in the browsers' configuration, or via the `proxies` parameter in requests:
+A proxy works by sitting between the client and destination server and is typically used to conceal the IP address of a client. A normal proxy would be used either by setting its settings in the browsers' configuration, or via the `proxies` parameter in requests:
 
 .. code-block:: python
 
@@ -101,7 +101,7 @@ In this case `requests` will generate the same HTTP request we saw above, but in
     Accept: */*
     Connection: keep-alive
 
-The proxy, once it receives the HTTP request, interprets *where* the client is trying to go via either the first line of the request, or the ``Host`` header. It then opens a connection with the destination server on behalf of the client, and allows the client and the server to communicate between each other through *it*. In other words, a proxy is a 'man in the middle' whose job is primairly concentrated on conceling the IP address of the client. 
+The proxy, once it receives the HTTP request, interprets *where* the client is trying to go via either the first line of the request, or the ``Host`` header. It then opens a connection with the destination server on behalf of the client, and allows the client and the server to communicate between each other through *it*. In other words, a proxy is a 'man in the middle' whose job is primarily concentrated on concealing the IP address of the client. 
 
 When a client utilises HTTPS (``https://``) the initial request goes to the proxy, and subsequently the proxy connects the client and server. The difference here, however, is that after the client and server are connected they perform the TLS/SSL handshake and begin a secure connection. This connection is now encrypted and the client and server can communicate freely without fear of being intercepted.
 
@@ -125,19 +125,28 @@ When this happens, and the client sends a
     
     CONNECT example.com:443 HTTP/1.0
 
-What `mitm` does is *acts* like the destination server by responding back to the client
+What `mitm` does is first open a connection with the destination server (answering ``502 Bad Gateway`` if it cannot), then *act* like the destination server by responding back to the client
 
 .. code-block::
 
-    HTTP/1.1 200 OK
+    HTTP/1.1 200 Connection Established
 
-and then performs the TLS/SSL handshake on behalf of the destination server. Once `mitm` and the client are connected it then opens a connection with the destination server and relays their communication back-and-forth, sitting in the middle and listening. Note, however, that since `mitm` generates its own TLS/SSL certificates a client will not trust it unless one either adds the generated certificate to their keychain (**not recommended**) or one uses a special flag in `requests`:
+and performing the TLS/SSL handshake with the client using a certificate for ``example.com`` that it generated and signed itself. From then on `mitm` decrypts what each side sends, passes it through its middlewares, and re-encrypts it for the other side, sitting in the middle and listening.
+
+Since that certificate is signed by `mitm`'s own certificate authority, a client will only accept it if it trusts that authority (see :doc:`../docs/trusting-mitm`). With `requests`, point ``verify`` at it:
 
 .. code-block:: python
 
+    import mitm
     import requests
 
     proxies = {"http": "http://127.0.0.1:8888", "https": "http://127.0.0.1:8888"}
-    requests.get("https://example.com", proxies=proxies, verify=False)
+    requests.get("https://example.com", proxies=proxies, verify=mitm.__data__ / "mitm.pem")
+
+Or let the command line do all of this for you:
+
+.. code-block::
+
+    mitm -- python -c "import requests; requests.get('https://example.com')"
 
 ... and that's really it!
