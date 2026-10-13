@@ -1,3 +1,5 @@
+import errno
+
 import pytest
 
 from mitm import HTTP, Connection, Host, InvalidProtocol
@@ -59,5 +61,5 @@ def test_origin_form(data, expected):
 
 def test_describe():
     assert describe(TimeoutError()) == "timed out"
-    assert describe(ConnectionRefusedError(61, "Connect call failed")) == "connection refused"
+    assert describe(ConnectionRefusedError(errno.ECONNREFUSED, "Connect call failed")) == "connection refused"
     assert describe(OSError("Multiple exceptions")) == "Multiple exceptions"
