@@ -154,8 +154,10 @@ class MITM:
             if not data:
                 return
 
-            # Requests addressed to the proxy itself (`GET /`, not `GET http://...`) get the certificate page.
-            if data.startswith(b"GET /"):
+            # Requests addressed to the proxy itself (`GET /`, not `GET http://...`) get the
+            # certificate page. Forwarding them by `Host` would loop back into the proxy.
+            line = data.split(b"\r\n", 1)[0].split(b" ")
+            if len(line) == 3 and line[1].startswith(b"/") and line[2].startswith(b"HTTP/"):
                 await self.serve_certificate(connection, data)
                 return
 
@@ -201,12 +203,15 @@ class MITM:
         """
         Serves the certificate download page, and the CA certificate in PEM and DER format.
         """
-        path = data.split(b" ", 2)[1].decode("latin-1")
+        method, path = data.decode("latin-1").split(" ", 2)[:2]
         cert = self.certificate_authority.cert
         status, content_type, body = "200 OK", "text/html; charset=utf-8", CERT_PAGE
         headers = ""
 
-        if path in ("/cert.pem", "/cert.cer", "/cert.crt"):
+        if method not in ("GET", "HEAD"):
+            status, content_type, body = "405 Method Not Allowed", "text/plain; charset=utf-8", b"Method Not Allowed\n"
+            headers = "Allow: GET, HEAD\r\n"
+        elif path in ("/cert.pem", "/cert.cer", "/cert.crt"):
             encoding = serialization.Encoding.PEM if path == "/cert.pem" else serialization.Encoding.DER
             body = cert.public_bytes(encoding)
             content_type = "application/x-pem-file" if path == "/cert.pem" else "application/x-x509-ca-cert"
@@ -221,7 +226,7 @@ class MITM:
             f"{headers}"
             f"Connection: close\r\n\r\n"
         )
-        connection.client.writer.write(head.encode() + body)
+        connection.client.writer.write(head.encode() + (b"" if method == "HEAD" else body))
         await connection.client.writer.drain()
 
 

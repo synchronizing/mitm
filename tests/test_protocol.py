@@ -13,7 +13,6 @@ from mitm.extension.protocol import describe, origin_form
         (b"CONNECT [::1]:8443 HTTP/1.1\r\n\r\n", ("::1", 8443, True)),
         (b"GET http://example.com/path HTTP/1.1\r\nHost: example.com\r\n\r\n", ("example.com", 80, False)),
         (b"GET http://example.com:8080/ HTTP/1.1\r\n\r\n", ("example.com", 8080, False)),
-        (b"POST /path HTTP/1.1\r\nHost: example.com:8080\r\n\r\n", ("example.com", 8080, False)),
         (b"GET http://example.com/ HTTP/1.1\r\nHost: exa", ("example.com", 80, False)),  # Partial head.
     ],
 )
@@ -27,6 +26,7 @@ async def test_resolve(data, expected, ca):
         b"junk",
         b"\x16\x03\x01\x00",
         b"GET /path HTTP/1.1\r\n\r\n",
+        b"POST /path HTTP/1.1\r\nHost: example.com:8080\r\n\r\n",
         b"GET https://example.com/ HTTP/1.1\r\n\r\n",
         b"CONNECT example.com:https HTTP/1.1\r\n\r\n",
         b"HTTP/1.1 200 OK\r\n\r\n",

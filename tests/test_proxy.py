@@ -135,6 +135,16 @@ class TestMITM:
             response = await raw(proxy, b"GET %s HTTP/1.1\r\n\r\n" % path)
             assert response.endswith(ca.cert.public_bytes(mitm.crypto.serialization.Encoding.DER))
         assert (await raw(proxy, b"GET /missing HTTP/1.1\r\n\r\n")).startswith(b"HTTP/1.1 404 Not Found")
+        assert (await raw(proxy, b"POST / HTTP/1.1\r\n\r\n")).startswith(b"HTTP/1.1 405 Method Not Allowed")
+
+    async def test_requests_to_itself_are_not_forwarded(self, proxy, log):
+        """
+        A `Host` naming the proxy must not make it connect to itself, again and again.
+        """
+        response = await raw(proxy, b"HEAD / HTTP/1.1\r\nHost: 127.0.0.1:%d\r\n\r\n" % proxy.port)
+        assert response.startswith(b"HTTP/1.1 200 OK") and response.endswith(b"\r\n\r\n")
+        assert len(proxy.connections) <= 1
+        assert log.count == 0
 
     async def test_not_http(self, proxy, log):
         assert await raw(proxy, b"\x16\x03\x01 not http\r\n\r\n") == b""

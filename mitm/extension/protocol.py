@@ -17,8 +17,8 @@ class HTTP(Protocol):
     """
     Adds support for HTTP protocol (with TLS support).
 
-    Plain HTTP requests (``GET http://...``) are forwarded to the server as-is.
-    ``CONNECT`` requests are intercepted: the `mitm` connects to the server, then
+    Plain HTTP requests (``GET http://...``) are forwarded to the server, one per
+    connection. ``CONNECT`` requests are intercepted: the `mitm` connects to the server, then
     completes the TLS handshake with the client using a certificate signed by its
     certificate authority, so both directions can be read in plain text.
 
@@ -65,13 +65,11 @@ class HTTP(Protocol):
 
             if request.method == "CONNECT":
                 host, port = http.split_authority(request.target, 443)
-            elif "://" in request.target:
+            else:
                 url = urllib.parse.urlsplit(request.target)
                 if url.scheme != "http":
-                    raise ValueError(f"Unsupported scheme: {url.scheme}")
+                    raise ValueError(f"Not a proxy request: {request.line!r}")
                 host, port = url.hostname, url.port or 80
-            else:
-                host, port = http.split_authority(request.header("Host") or "", 80)
         except ValueError as err:
             raise InvalidProtocol(str(err)) from err
 
