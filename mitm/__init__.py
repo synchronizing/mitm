@@ -3,40 +3,42 @@ Github: https://github.com/synchronizing/mitm
 Docs: https://synchronizing.github.io/mitm/
 """
 
-# pylint: disable=wrong-import-order, wrong-import-position
-
 __author__ = "Felipe Faria"
 __project__ = "mitm"
 
 import pathlib
-import appdirs
-from pbr.version import VersionInfo
+from importlib import metadata
 
-__version__ = VersionInfo(__project__).release_string()
-__data__ = pathlib.Path(appdirs.user_data_dir(__package__, __author__))
+import platformdirs
 
-import logging
-import sys
+try:
+    __version__ = metadata.version(__project__)
+except metadata.PackageNotFoundError:  # pragma: no cover
+    # The package is not installed (e.g. running from the source directly).
+    __version__ = "0.0.0"
 
-logging.basicConfig(
-    stream=sys.stdout,
-    format="%(asctime)s %(levelname)-8s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-)
+__data__ = pathlib.Path(platformdirs.user_data_dir(__project__, __author__))
 
-from mitm.core import *
+from mitm import crypto, http
 from mitm.crypto import *
 from mitm.extension import *
-from mitm.mitm import *
+from mitm.models import *
+from mitm.proxy import *
 
 __all__ = [
-    "Host",
+    "HTTP",
+    "MITM",
+    "CertificateAuthority",
     "Connection",
     "Flow",
-    "MITM",
+    "HTTPLog",
+    "Host",
+    "InvalidProtocol",
+    "Log",
     "Middleware",
     "Protocol",
-    "InvalidProtocol",
-    "CertificateAuthority",
+    "crypto",
+    "http",
+    "middleware",
+    "protocol",
 ]

@@ -1,2 +1,67 @@
-[tool.black]
+[build-system]
+requires = ["setuptools>=77", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mitm"
+dynamic = ["version"]
+description = "Man-in-the-middle proxy with customizable options."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "Felipe Faria" }]
+keywords = ["mitm"]
+classifiers = [
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Development Status :: 5 - Production/Stable",
+    "Natural Language :: English",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "cryptography>=42",
+    "platformdirs>=3",
+]
+
+[project.scripts]
+mitm = "mitm.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/synchronizing/mitm"
+Documentation = "https://synchronizing.github.io/mitm/"
+"Bug Tracker" = "https://github.com/synchronizing/mitm/issues"
+"Source Code" = "https://github.com/synchronizing/mitm/tree/master"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "ruff",
+]
+
+[tool.setuptools]
+packages = ["mitm", "mitm.extension"]
+
+[tool.setuptools.package-data]
+mitm = ["cert.html"]
+
+[tool.setuptools_scm]
+
+[tool.ruff]
 line-length = 120
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F401", "F403", "F405"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.coverage.report]
+fail_under = 85

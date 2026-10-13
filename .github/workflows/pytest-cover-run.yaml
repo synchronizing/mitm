@@ -1,7 +1,7 @@
 # Pytest + Coveralls
 name: Build
 
-on: 
+on:
   push:
     tags:
       - '*'
@@ -13,26 +13,37 @@ on:
 
 jobs:
   pytest:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
+        os: ["ubuntu-latest"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: "macos-latest"
+            python-version: "3.14"
     steps:
     - name: Checks repo out
-      uses: actions/checkout@v2
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install testing depedencies
+    - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip setuptools wheel
-        pip install .
-        pip install -r tests/requirements.txt
+        python -m pip install --upgrade pip
+        pip install ".[dev]" coveralls
+    - name: Run Ruff
+      run: |
+        ruff check .
+        ruff format --check .
     - name: Run PyTest
       run: |
         pytest --cov=mitm tests/
     - name: Run Coveralls
+      if: matrix.os == 'ubuntu-latest'
       env:
         COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

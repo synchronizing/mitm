@@ -1,20 +1,17 @@
 # Env
 .DS_Store
-.ropeproject
-.python-version
-.vscode
-openssl
 .venv
 
 # Python
 __pycache__
 *.egg-info
-.eggs
+build
+dist
 
 # Documentation
 docs/build/
 
-# PyTest + Coverage
+# PyTest + Coverage + Ruff
 .pytest_cache
 .coverage
-test.py
+.ruff_cache

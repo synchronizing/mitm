@@ -18,7 +18,8 @@ Contents
   :caption: API
   :glob:
 
-  module/core
-  module/crypto
+  module/proxy
+  module/models
   module/extension
-  module/mitm
+  module/http
+  module/crypto

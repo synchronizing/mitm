@@ -2,14 +2,11 @@
 Trusting `mitm`
 ###############
 
-When `mitm` runs it generates a `certificate authority <https://en.wikipedia.org/wiki/Certificate_authority>`_ (CA) that is used to generate dummy certificates for each website visited. To trust this certificate you must install it on your system. By default, the certificate is generated in the `mitm.__data__` directory. To discover what this directory is do the following:
+The first time `mitm` runs it generates a `certificate authority <https://en.wikipedia.org/wiki/Certificate_authority>`_ (CA) that is used to generate dummy certificates for each website visited, and reuses it after that. To trust this certificate you must install it on your system. By default, the certificate is generated in the `mitm.__data__` directory. To discover what this directory is do the following:
 
 .. code-block:: shell
 
     $ python
-    Python 3.9.6 (default, Aug 31 2021, 00:19:31) 
-    [Clang 12.0.5 (clang-1205.0.22.11)] on darwin
-    Type "help", "copyright", "credits" or "license" for more information.
     >>> import mitm
     >>> mitm.__data__
     PosixPath('/Users/felipe/Library/Application Support/mitm') # You should see a different path.
@@ -17,6 +14,8 @@ When `mitm` runs it generates a `certificate authority <https://en.wikipedia.org
     
     $ ls /Users/felipe/Library/Application\ Support/mitm
     mitm.key mitm.pem
+
+Note that commands wrapped with the command line (``mitm -- <command>``) trust the certificate automatically, as long as they respect the ``SSL_CERT_FILE``, ``REQUESTS_CA_BUNDLE``, ``CURL_CA_BUNDLE``, ``NODE_EXTRA_CA_CERTS``, ``DENO_CERT``, ``GIT_SSL_CAINFO``, or ``AWS_CA_BUNDLE`` environment variables.
     
 Customizing Path
 ----------------
@@ -37,7 +36,7 @@ To customize the path where the certificate is generated, you can use the follow
         host="127.0.0.1",
         port=8888,
         protocols=[protocol.HTTP],
-        middlewares=[middleware.Log],
+        middlewares=[middleware.HTTPLog],
         certificate_authority=certificate_authority,
     )
     mitm.run()
@@ -45,4 +44,4 @@ To customize the path where the certificate is generated, you can use the follow
 Installing CA
 --------------
 
-Different systems have different ways to install the certificate. Its recommended you look up "how to install a certificate" on your system.
+While `mitm` is running, browse to its address (``http://localhost:8888`` by default) to download the certificate. The page has the certificate in the formats used by each system (iOS, Android, macOS, Windows, and Linux), with instructions on how to install it.
