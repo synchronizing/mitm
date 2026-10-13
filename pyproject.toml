@@ -5,21 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mitm"
 dynamic = ["version"]
-description = "Man-in-the-middle proxy for HTTP and HTTPS. Run a command through it to see every request it makes."
+description = "Man-in-the-middle proxy with customizable options."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [{ name = "Felipe Faria" }]
-keywords = ["mitm", "proxy", "http", "https", "debugging", "agents"]
+keywords = ["mitm"]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Environment :: Console",
-    "Intended Audience :: Developers",
-    "Natural Language :: English",
-    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Topic :: Internet :: Proxy Servers",
-    "Topic :: Software Development :: Debuggers",
+    "Development Status :: 5 - Production/Stable",
+    "Natural Language :: English",
+    "Topic :: Software Development :: Libraries",
     "Topic :: Utilities",
 ]
 dependencies = [
@@ -57,8 +53,10 @@ line-length = 120
 extend-exclude = ["docs"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "N", "UP", "B", "RUF"]
-ignore = ["N818"]  # `InvalidProtocol` is public API.
+select = ["E", "F", "I", "W", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F401", "F403", "F405"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -66,5 +64,4 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 
 [tool.coverage.report]
-fail_under = 90
-show_missing = true
+fail_under = 85

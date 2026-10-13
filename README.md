@@ -1,49 +1,63 @@
-# mitm
+# 👨‍💻 mitm
 
 <p align="center">
   <a href="https://www.pepy.tech/projects/mitm">
     <img src="https://static.pepy.tech/badge/mitm">
   </a>
+
   <a href="https://github.com/synchronizing/mitm/actions?query=workflow%3ABuild">
     <img src="https://github.com/synchronizing/mitm/workflows/Build/badge.svg?branch=master&event=push">
   </a>
+
   <a href="https://synchronizing.github.io/mitm/">
     <img src="https://github.com/synchronizing/mitm/actions/workflows/docs-publish.yaml/badge.svg">
   </a>
+
   <a href="https://coveralls.io/github/synchronizing/mitm?branch=master">
     <img src="https://coveralls.io/repos/github/synchronizing/mitm/badge.svg?branch=master">
   </a>
+
   <a href="https://opensource.org/licenses/MIT">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg">
   </a>
 </p>
 
-Man-in-the-middle proxy for HTTP and HTTPS. Run a command through it and see every request it makes, whether you're debugging it yourself or your coding agent is.
+A customizable man-in-the-middle TCP proxy with support for HTTP & HTTPS.
+
+## Installing
 
 ```
-$ mitm -- curl -s https://api.github.com/zen
-  ┊ GET https://api.github.com/zen → 200 OK (text/plain, 35 B, 45 ms)
-Approachable is better than simple.
-```
-
-## Install
-
-```bash
 pip install mitm
 ```
 
-## Usage
+## Documentation
 
-```bash
-mitm -- curl https://example.com          # one line per request
-mitm -v -- python app.py                  # include headers and bodies
-mitm --json -o traffic.jsonl -- npm ci    # every exchange as JSON Lines
-mitm                                      # standalone proxy on 127.0.0.1:8888
+Documentation can be found [**here**](https://synchronizing.github.io/mitm/).
+
+## Using
+
+### Command line
+
+`mitm` can wrap any command and log the HTTP & HTTPS requests it makes:
+
+```
+$ mitm -- curl -s https://api.github.com/zen
+  ┊ GET https://api.github.com/zen → 200 OK (text/plain, 19 B, 44 ms)
+Accessible for all.
 ```
 
-`mitm` starts a proxy on a free port and runs the command with `HTTP_PROXY` and `HTTPS_PROXY` pointing at it. It also sets `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS` and similar variables so the command trusts mitm's certificate authority. When the command exits, mitm exits with the same code. Traffic is written to stderr (or `-o FILE`), so the command's stdout stays clean to pipe.
+The `┊` lines are the intercepted traffic (stderr). Everything else is the command's normal output (stdout), so it is safe to pipe. `mitm` sets `HTTP_PROXY`, `HTTPS_PROXY`, and the certificate environment variables (`SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`, etc.) on the command automatically, and exits with the command's exit code.
 
-With `-v`, each exchange is printed in full:
+```bash
+mitm                                      # Start proxy on default port.
+mitm -p 9999                              # Start proxy on port 9999.
+mitm -- curl https://example.com          # Capture curl's traffic.
+mitm -- python my_script.py               # Capture a script's traffic.
+mitm -v -- python my_script.py            # Capture a script's traffic, with headers and bodies.
+mitm --json -o traffic.jsonl -- npm ci    # Capture npm's traffic as JSON.
+```
+
+Using `-v` will also log the headers and bodies of each request:
 
 ```
 $ mitm -v -- curl -s https://httpbin.org/post -H 'Content-Type: application/json' -d '{"stream":false}' -o /dev/null
@@ -57,51 +71,69 @@ $ mitm -v -- curl -s https://httpbin.org/post -H 'Content-Type: application/json
   ┊ {"stream":false}
   ┊
   ┊ HTTP/1.1 200 OK (application/json, 427 B, 43 ms)
-  ┊ Date: Mon, 12 Oct 2026 21:01:20 GMT
+  ┊ Date: Tue, 13 Oct 2026 02:16:43 GMT
   ┊ Content-Type: application/json
   ┊ Content-Length: 427
   ┊ ...
 ```
 
-With `--json`, each exchange is one line of JSON:
+Using `--json` will log each request as a JSON object, one per line:
 
 ```json
 {
-  "time": "2026-10-12T21:00:53.547Z",
-  "duration_ms": 43,
+  "time": "2026-10-13T02:16:43.409Z",
+  "duration_ms": 108,
   "request": {"method": "GET", "url": "https://api.github.com/zen", "version": "HTTP/1.1", "headers": [["Host", "api.github.com"], ...], "body": "", "body_size": 0, "truncated": false},
-  "response": {"status": 200, "reason": "OK", "version": "HTTP/1.1", "headers": [...], "body": "Approachable is better than simple.", "body_size": 35, "truncated": false},
+  "response": {"status": 200, "reason": "OK", "version": "HTTP/1.1", "headers": [...], "body": "Accessible for all.", "body_size": 19, "truncated": false},
   "error": null
 }
 ```
 
-Bodies are decompressed (gzip, deflate) and decoded as text. Binary bodies are `null`, and bodies are cut off after `--max-body` bytes (default 4096; `0` for no limit). Failures are reported rather than swallowed:
+Note that bodies are decompressed (gzip & deflate) and decoded into text. Binary bodies are `null`, and bodies are cut short after `--max-body` bytes (4096 by default, `0` for no limit). Requests that fail are logged with the reason:
 
 ```
-  ┊ CONNECT api.example.invalid:443 ✗ cannot connect to api.example.invalid:443: nodename nor servname provided, or not known
+  ┊ CONNECT api.example.invalid:443 ✗ Unable to connect to api.example.invalid:443 (nodename nor servname provided, or not known).
 ```
 
-### What gets captured
+Only commands that respect the `HTTP_PROXY` and `HTTPS_PROXY` environment variables can be captured. This covers curl, wget, Python (requests, httpx, urllib, pip), Node.js 24+, Deno, Go, Ruby, git, and most HTTP libraries. If nothing is captured, `mitm` will let you know. Some commands use their own list of trusted certificates instead of the environment variables above (e.g. browsers, Java, and Go on macOS), and need the certificate to be installed (see below).
 
-Any client that honors `HTTP(S)_PROXY`: curl, wget, Python (requests, httpx, urllib, pip), Node.js 24+, Deno, Go, Ruby, git, and the AWS CLI, among others. If nothing shows up, the command ignores the proxy variables, and mitm says so. Some clients use their own trust store instead of the variables above (browsers, Java, and Go on macOS); install the certificate system-wide for those. HTTP/2-only clients (such as gRPC) and non-HTTP protocols are not supported.
+### Library
+
+Using the default values for the `MITM` class:
+
+```python
+from mitm import MITM, protocol, middleware
+
+mitm = MITM(
+    host="127.0.0.1",
+    port=8888,
+    protocols=[protocol.HTTP],
+    middlewares=[middleware.HTTPLog],
+)
+mitm.run()
+```
+
+This will start a proxy on port `8888` that is capable of intercepting all HTTP traffic (with support for SSL/TLS) and log all activity.
+
+The proxy can also be used as an async context manager. Use port `0` to listen on any free port:
+
+```python
+async with MITM(port=0) as mitm:
+    print(mitm.port)
+```
 
 ## Certificates
 
-mitm creates its certificate authority on first run, in `~/Library/Application Support/mitm` on macOS or `~/.local/share/mitm` on Linux, and reuses it afterwards. Commands run through `mitm --` trust it automatically. For anything else, such as browsers, phones, or other machines, open `http://127.0.0.1:8888/` while the proxy runs to download the certificate, along with install instructions for each platform.
+`mitm` generates a certificate authority the first time it runs, and reuses it after that. Commands wrapped with `mitm --` trust it automatically. For anything else (browsers, phones, other machines), browse to `http://localhost:8888` while the proxy is running to download and install the certificate. Platform-specific formats and instructions are on the page.
 
-## For agents
+## Extensions
 
-mitm is built to be run by coding agents. It writes plain text with no color codes when its output isn't a terminal, emits JSON Lines with a fixed shape, states errors explicitly, and passes the command's exit code through. The [`mitm` skill](.agents/skills/mitm/SKILL.md) tells agents when and how to use it:
+`mitm` can be customized through the implementations of middlewares and protocols.
 
-```bash
-mkdir -p ~/.claude/skills/mitm
-curl -fsSL https://raw.githubusercontent.com/synchronizing/mitm/master/.agents/skills/mitm/SKILL.md -o ~/.claude/skills/mitm/SKILL.md
-```
-
-## Library
+[Middlewares](https://synchronizing.github.io/mitm/docs/internals.html#mitm.models.Middleware) are event-driven hooks that are called when connections are made, requests are sent, responses are received, and connections are closed (or fail). Only the hooks that are needed have to be implemented:
 
 ```python
-from mitm import MITM, HTTPLog, Middleware
+from mitm import MITM, Middleware, middleware
 
 
 class Redact(Middleware):
@@ -109,14 +141,16 @@ class Redact(Middleware):
         return data.replace(b"hunter2", b"*******")
 
 
-MITM(port=8888, middlewares=[Redact, HTTPLog]).run()
+MITM(middlewares=[Redact, middleware.HTTPLog]).run()
 ```
 
-`MITM` also works as an async context manager. Port `0` picks a free port:
+[Protocols](https://synchronizing.github.io/mitm/docs/internals.html#mitm.models.Protocol) are implementations on _how_ the data flows between the client and server, and is used to implement [application layer](https://en.wikipedia.org/wiki/Application_layer) protocols and/or more complex extensions.
 
-```python
-async with MITM(port=0) as proxy:
-    print(proxy.port)
+## Agent Skill
+
+An agent skill is available at [`.agents/skills/mitm/`](https://github.com/synchronizing/mitm/tree/master/.agents/skills/mitm) for AI coding agents that support the [SKILL.md](https://agentskills.io) format. To install it for Claude Code:
+
 ```
-
-[Middlewares](https://synchronizing.github.io/mitm/docs/internals.html#mitm.models.Middleware) are hooks called as connections open, data flows, and connections close or fail; override only the ones you need. [Protocols](https://synchronizing.github.io/mitm/docs/internals.html#mitm.models.Protocol) define how data flows between client and server; HTTP and HTTPS are built in. See the [documentation](https://synchronizing.github.io/mitm/) for details.
+mkdir -p ~/.claude/skills/mitm
+curl -fsSL https://raw.githubusercontent.com/synchronizing/mitm/master/.agents/skills/mitm/SKILL.md -o ~/.claude/skills/mitm/SKILL.md
+```

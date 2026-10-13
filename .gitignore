@@ -1,17 +1,17 @@
+# Env
+.DS_Store
+.venv
+
 # Python
-__pycache__/
-*.egg-info/
-.venv/
-build/
-dist/
+__pycache__
+*.egg-info
+build
+dist
 
-# Tooling
-.coverage
-.pytest_cache/
-.ruff_cache/
-
-# Docs
+# Documentation
 docs/build/
 
-# OS
-.DS_Store
+# PyTest + Coverage + Ruff
+.pytest_cache
+.coverage
+.ruff_cache

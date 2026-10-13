@@ -13,7 +13,7 @@ crypto
 .. autodata:: mitm.crypto.LRU_MAX_SIZE
     :annotation:
 
-.. autofunction:: mitm.crypto.new_key
+.. autofunction:: mitm.crypto.new_RSA
 
 .. autoclass:: mitm.crypto.CertificateAuthority
     :members:

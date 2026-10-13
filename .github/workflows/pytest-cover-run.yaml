@@ -1,34 +1,51 @@
+# Pytest + Coveralls
 name: Build
 
 on:
   push:
-    branches: [master]
-    tags: ["*"]
+    tags:
+      - '*'
+    branches:
+      - master
   pull_request:
+    branches:
+      - '*'
 
 jobs:
-  test:
+  pytest:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: ["ubuntu-latest"]
         python-version: ["3.11", "3.12", "3.13", "3.14"]
         include:
-          - os: macos-latest
+          - os: "macos-latest"
             python-version: "3.14"
     steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 # setuptools-scm reads the version from tags.
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-      - run: pip install -e ".[dev]" coveralls
-      - run: ruff check . && ruff format --check .
-      - run: pytest --cov=mitm
-      - if: matrix.os == 'ubuntu-latest'
-        run: coveralls
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checks repo out
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ".[dev]" coveralls
+    - name: Run Ruff
+      run: |
+        ruff check .
+        ruff format --check .
+    - name: Run PyTest
+      run: |
+        pytest --cov=mitm tests/
+    - name: Run Coveralls
+      if: matrix.os == 'ubuntu-latest'
+      env:
+        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        coveralls

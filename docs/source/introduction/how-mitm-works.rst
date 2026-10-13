@@ -125,15 +125,15 @@ When this happens, and the client sends a
     
     CONNECT example.com:443 HTTP/1.0
 
-What `mitm` does is first open a connection with the destination server (answering ``502 Bad Gateway`` if it cannot), then *act* like the destination server by responding back to the client
+What `mitm` does is first open a connection with the destination server, and then *act* like the destination server by responding back to the client
 
 .. code-block::
 
     HTTP/1.1 200 Connection Established
 
-and performing the TLS/SSL handshake with the client using a certificate for ``example.com`` that it generated and signed itself. From then on `mitm` decrypts what each side sends, passes it through its middlewares, and re-encrypts it for the other side, sitting in the middle and listening.
+and then performs the TLS/SSL handshake on behalf of the destination server. Once `mitm` and the client are connected it relays their communication back-and-forth with the destination server, sitting in the middle and listening. If the destination server cannot be reached, `mitm` responds with ``502 Bad Gateway`` instead (and the reason why).
 
-Since that certificate is signed by `mitm`'s own certificate authority, a client will only accept it if it trusts that authority (see :doc:`../docs/trusting-mitm`). With `requests`, point ``verify`` at it:
+Note, however, that since `mitm` generates its own TLS/SSL certificates a client will not trust it unless one either installs the generated certificate (see :doc:`../docs/trusting-mitm`), or tells the client to trust it. In `requests` this is done with the `verify` flag:
 
 .. code-block:: python
 
@@ -143,10 +143,10 @@ Since that certificate is signed by `mitm`'s own certificate authority, a client
     proxies = {"http": "http://127.0.0.1:8888", "https": "http://127.0.0.1:8888"}
     requests.get("https://example.com", proxies=proxies, verify=mitm.__data__ / "mitm.pem")
 
-Or let the command line do all of this for you:
+The command line does all of the above automatically for any command it wraps:
 
 .. code-block::
 
-    mitm -- python -c "import requests; requests.get('https://example.com')"
+    mitm -- python my_script.py
 
 ... and that's really it!

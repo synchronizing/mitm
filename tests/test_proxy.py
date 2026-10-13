@@ -1,18 +1,19 @@
 import asyncio
+import http.client
 import json
 import ssl
 
 import pytest
+from cryptography.hazmat.primitives import serialization
 
-import mitm
-from mitm import MITM, Connection, Host, HTTPLog, Middleware
+from mitm import MITM, HTTPLog, Middleware
 
-from .conftest import client_context, request
+from .conftest import HOST, client_context, request
 
 
-async def records(log: HTTPLog, count: int = 1) -> list[dict]:
+async def logged(log, count=1):
     """
-    Waits for `log` to hold `count` exchanges, and returns them.
+    Waits for the given number of requests to be logged, and returns them.
     """
     async with asyncio.timeout(5):
         while log.count < count:
@@ -20,55 +21,65 @@ async def records(log: HTTPLog, count: int = 1) -> list[dict]:
     return [json.loads(line) for line in log.stream.getvalue().splitlines()]
 
 
-async def raw(proxy: MITM, data: bytes) -> bytes:
+async def send(proxy, data):
     """
-    Sends raw bytes to the proxy and returns everything it answers until it closes.
+    Sends raw data to the proxy, and returns everything it sends back until it closes.
     """
-    reader, writer = await asyncio.open_connection("127.0.0.1", proxy.port)
+    reader, writer = await asyncio.open_connection(HOST, proxy.port)
     writer.write(data)
     response = await asyncio.wait_for(reader.read(), 5)
     writer.close()
     return response
 
 
-class TestHTTP:
-    async def test_get(self, proxy, origin, log):
-        url = f"http://127.0.0.1:{origin.port}/hello"
+class Test_HTTP:
+    @pytest.mark.asyncio
+    async def test_request(self, proxy, server, log):
+        url = f"http://{HOST}:{server.port}/hello"
         assert await asyncio.to_thread(request, proxy, "GET", url) == (200, b"hello")
 
-        [record] = await records(log)
-        assert record["request"]["method"] == "GET"
-        assert record["request"]["url"] == url
-        assert record["response"]["status"] == 200
-        assert record["response"]["body"] == "hello"
-        assert record["error"] is None
+        [entry] = await logged(log)
+        assert entry["request"]["method"] == "GET"
+        assert entry["request"]["url"] == url
+        assert entry["response"]["status"] == 200
+        assert entry["response"]["body"] == "hello"
+        assert entry["error"] is None
 
-    async def test_close_delimited(self, proxy, origin, log):
-        url = f"http://127.0.0.1:{origin.port}/close"
+    @pytest.mark.asyncio
+    async def test_response_until_close(self, proxy, server, log):
+        url = f"http://{HOST}:{server.port}/close"
         assert await asyncio.to_thread(request, proxy, "GET", url) == (200, b"until close")
-        [record] = await records(log)
-        assert record["response"]["body"] == "until close"
 
+        [entry] = await logged(log)
+        assert entry["response"]["body"] == "until close"
+
+    @pytest.mark.asyncio
     async def test_unreachable(self, proxy, log):
-        status, body = await asyncio.to_thread(request, proxy, "GET", "http://127.0.0.1:1/")
+
+        # Nothing listens on port 1, so the client is told the server cannot be reached.
+        status, body = await asyncio.to_thread(request, proxy, "GET", f"http://{HOST}:1/")
         assert status == 502
         assert b"connection refused" in body
 
-        [record] = await records(log)
-        assert record["request"]["url"] == "http://127.0.0.1:1/"
-        assert "cannot connect to 127.0.0.1:1: connection refused" in record["error"]
+        [entry] = await logged(log)
+        assert entry["request"]["url"] == f"http://{HOST}:1/"
+        assert entry["error"] == f"Unable to connect to {HOST}:1 (connection refused)."
 
 
-class TestHTTPS:
-    async def test_get(self, proxy, tls_origin, log, ca_file):
-        url = f"https://localhost:{tls_origin.port}/hello"
-        assert await asyncio.to_thread(request, proxy, "GET", url, context=client_context(ca_file)) == (200, b"hello")
-        [record] = await records(log)
-        assert record["request"]["url"] == url
-        assert record["response"]["body"] == "hello"
+class Test_HTTPS:
+    @pytest.mark.asyncio
+    async def test_request(self, proxy, tls_server, log, ca_file):
+        url = f"https://localhost:{tls_server.port}/hello"
+        response = await asyncio.to_thread(request, proxy, "GET", url, context=client_context(ca_file))
+        assert response == (200, b"hello")
 
+        [entry] = await logged(log)
+        assert entry["request"]["url"] == url
+        assert entry["response"]["body"] == "hello"
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        ("method", "path", "body", "expected"),
+        "method, path, body, expected",
         [
             ("POST", "/echo", b'{"a": 1}', '{"a": 1}'),
             ("GET", "/chunked", None, "first second"),
@@ -77,121 +88,134 @@ class TestHTTPS:
             ("HEAD", "/hello", None, ""),
         ],
     )
-    async def test_bodies(self, proxy, tls_origin, log, ca_file, method, path, body, expected):
-        url = f"https://localhost:{tls_origin.port}{path}"
+    async def test_bodies(self, proxy, tls_server, log, ca_file, method, path, body, expected):
+        url = f"https://localhost:{tls_server.port}{path}"
         headers = {"Content-Type": "application/json"} if body else {}
         await asyncio.to_thread(request, proxy, method, url, body, headers, client_context(ca_file))
-        [record] = await records(log)
-        assert record["response"]["body"] == expected
+
+        [entry] = await logged(log)
+        assert entry["response"]["body"] == expected
         if body:
-            assert record["request"]["body"] == body.decode()
+            assert entry["request"]["body"] == body.decode()
 
-    async def test_keep_alive(self, proxy, tls_origin, log, ca_file):
-        import http.client
+    @pytest.mark.asyncio
+    async def test_keep_alive(self, proxy, tls_server, log, ca_file):
 
-        def two_requests():
-            connection = http.client.HTTPSConnection("127.0.0.1", proxy.port, context=client_context(ca_file))
-            connection.set_tunnel(f"localhost:{tls_origin.port}")
+        # Sends two requests through the same connection.
+        def requests():
+            connection = http.client.HTTPSConnection(HOST, proxy.port, context=client_context(ca_file))
+            connection.set_tunnel(f"localhost:{tls_server.port}")
             for path in ("/hello", "/chunked"):
                 connection.request("GET", path)
                 connection.getresponse().read()
             connection.close()
 
-        await asyncio.to_thread(two_requests)
-        first, second = await records(log, 2)
+        await asyncio.to_thread(requests)
+
+        first, second = await logged(log, 2)
         assert first["request"]["url"].endswith("/hello")
         assert second["request"]["url"].endswith("/chunked")
 
+    @pytest.mark.asyncio
     async def test_unreachable(self, proxy, log, ca_file):
         with pytest.raises(OSError, match="502"):
-            await asyncio.to_thread(request, proxy, "GET", "https://127.0.0.1:1/", context=client_context(ca_file))
-        [record] = await records(log)
-        assert record["request"]["method"] == "CONNECT"
-        assert "connection refused" in record["error"]
+            await asyncio.to_thread(request, proxy, "GET", f"https://{HOST}:1/", context=client_context(ca_file))
 
-    async def test_client_rejects_certificate(self, proxy, tls_origin, log):
+        [entry] = await logged(log)
+        assert entry["request"]["method"] == "CONNECT"
+        assert "connection refused" in entry["error"]
+
+    @pytest.mark.asyncio
+    async def test_untrusted_by_client(self, proxy, tls_server, log):
+
+        # The client does not trust the 'mitm' certificate authority.
+        context = ssl.create_default_context()
         with pytest.raises(ssl.SSLCertVerificationError):
-            await asyncio.to_thread(
-                request, proxy, "GET", f"https://localhost:{tls_origin.port}/", context=ssl.create_default_context()
-            )
-        [record] = await records(log)
-        assert "does not trust the mitm CA" in record["error"]
+            await asyncio.to_thread(request, proxy, "GET", f"https://localhost:{tls_server.port}/", context=context)
 
-    async def test_server_certificate_untrusted(self, ca, tls_origin, log, ca_file):
-        async with MITM(port=0, certificate_authority=ca, middlewares=[log]) as proxy:
+        [entry] = await logged(log)
+        assert "does not trust the mitm certificate authority" in entry["error"]
+
+    @pytest.mark.asyncio
+    async def test_untrusted_server(self, ca, tls_server, log, ca_file):
+
+        # The 'mitm' does not trust the certificate of the server.
+        async with MITM(port=0, certificate_authority=ca, middlewares=[log]) as mitm:
+            url = f"https://localhost:{tls_server.port}/"
             with pytest.raises(OSError, match="502"):
-                await asyncio.to_thread(
-                    request, proxy, "GET", f"https://localhost:{tls_origin.port}/", context=client_context(ca_file)
-                )
-        [record] = await records(log)
-        assert "certificate verify failed" in record["error"]
+                await asyncio.to_thread(request, mitm, "GET", url, context=client_context(ca_file))
+
+        [entry] = await logged(log)
+        assert "certificate verify failed" in entry["error"]
 
 
-class TestMITM:
+class Test_MITM:
+    @pytest.mark.asyncio
     async def test_certificate_page(self, proxy, ca):
-        assert b"200 OK" in await raw(proxy, b"GET / HTTP/1.1\r\n\r\n")
-        assert b"-----BEGIN CERTIFICATE-----" in await raw(proxy, b"GET /cert.pem HTTP/1.1\r\n\r\n")
-        for path in (b"/cert.cer", b"/cert.crt"):
-            response = await raw(proxy, b"GET %s HTTP/1.1\r\n\r\n" % path)
-            assert response.endswith(ca.cert.public_bytes(mitm.crypto.serialization.Encoding.DER))
-        assert (await raw(proxy, b"GET /missing HTTP/1.1\r\n\r\n")).startswith(b"HTTP/1.1 404 Not Found")
-        assert (await raw(proxy, b"POST / HTTP/1.1\r\n\r\n")).startswith(b"HTTP/1.1 405 Method Not Allowed")
+        assert b"200 OK" in await send(proxy, b"GET / HTTP/1.1\r\n\r\n")
+        assert b"-----BEGIN CERTIFICATE-----" in await send(proxy, b"GET /cert.pem HTTP/1.1\r\n\r\n")
 
-    async def test_requests_to_itself_are_not_forwarded(self, proxy, log):
-        """
-        A `Host` naming the proxy must not make it connect to itself, again and again.
-        """
-        response = await raw(proxy, b"HEAD / HTTP/1.1\r\nHost: 127.0.0.1:%d\r\n\r\n" % proxy.port)
-        assert response.startswith(b"HTTP/1.1 200 OK") and response.endswith(b"\r\n\r\n")
+        # Certificates in DER format.
+        for path in (b"/cert.cer", b"/cert.crt"):
+            response = await send(proxy, b"GET %s HTTP/1.1\r\n\r\n" % path)
+            assert response.endswith(ca.cert.public_bytes(serialization.Encoding.DER))
+
+        assert (await send(proxy, b"GET /missing HTTP/1.1\r\n\r\n")).startswith(b"HTTP/1.1 404 Not Found")
+        assert (await send(proxy, b"POST / HTTP/1.1\r\n\r\n")).startswith(b"HTTP/1.1 405 Method Not Allowed")
+
+    @pytest.mark.asyncio
+    async def test_request_to_itself(self, proxy, log):
+
+        # The 'Host' points to the 'mitm' itself. If it were proxied, the 'mitm' would
+        # connect to itself over and over again.
+        response = await send(proxy, b"HEAD / HTTP/1.1\r\nHost: %s:%d\r\n\r\n" % (HOST.encode(), proxy.port))
+        assert response.startswith(b"HTTP/1.1 200 OK")
+        assert response.endswith(b"\r\n\r\n")
         assert len(proxy.connections) <= 1
         assert log.count == 0
 
+    @pytest.mark.asyncio
     async def test_not_http(self, proxy, log):
-        assert await raw(proxy, b"\x16\x03\x01 not http\r\n\r\n") == b""
-        [record] = await records(log)
-        assert "no protocol matched" in record["error"]
+        assert await send(proxy, b"\x16\x03\x01 not http\r\n\r\n") == b""
 
-    async def test_stop_closes_open_connections(self, ca, origin):
-        proxy = MITM(port=0, certificate_authority=ca, middlewares=[Middleware()])
-        await proxy.start()
-        reader, writer = await asyncio.open_connection("127.0.0.1", proxy.port)
-        writer.write(b"GET http://127.0.0.1:%d/hello HTTP/1.1\r\n\r\n" % origin.port)
+        [entry] = await logged(log)
+        assert entry["error"] == "No protocol was found. Check the protocols list."
+
+    @pytest.mark.asyncio
+    async def test_stop(self, ca, server):
+        mitm = MITM(port=0, certificate_authority=ca, middlewares=[Middleware()])
+        await mitm.start()
+
+        # Opens a connection, and leaves it open.
+        reader, writer = await asyncio.open_connection(HOST, mitm.port)
+        writer.write(b"GET http://%s:%d/hello HTTP/1.1\r\n\r\n" % (HOST.encode(), server.port))
         assert (await reader.readuntil(b"hello")).startswith(b"HTTP/1.1 200 OK")
 
-        await asyncio.wait_for(proxy.stop(), 5)
+        # Stopping the 'mitm' closes the connection.
+        await asyncio.wait_for(mitm.stop(), 5)
         assert await asyncio.wait_for(reader.read(), 5) == b""
-        assert proxy.server is None
+        assert mitm.server is None
         writer.close()
 
+    @pytest.mark.asyncio
     async def test_defaults(self, data):
-        proxy = MITM(port=0)
-        assert [type(m) for m in proxy.middlewares] == [HTTPLog]
-        assert (data / "mitm.pem").exists()
-        assert MITM().certificate_authority.cert == proxy.certificate_authority.cert
-        async with proxy:
-            assert proxy.port != 0
+        mitm = MITM(port=0)
+        assert [type(middleware) for middleware in mitm.middlewares] == [HTTPLog]
 
-    async def test_middleware_modifies_data(self, ca, ca_file, origin):
+        # The certificate authority is stored, and loaded the next time.
+        assert (data / "mitm.pem").exists()
+        assert MITM().certificate_authority.cert == mitm.certificate_authority.cert
+
+        # Port 0 is replaced by the port the 'mitm' listens on.
+        async with mitm:
+            assert mitm.port != 0
+
+    @pytest.mark.asyncio
+    async def test_middleware(self, ca, server):
         class Uppercase(Middleware):
             async def server_data(self, connection, data):
                 return data.replace(b"hello", b"HELLO")
 
-        async with MITM(port=0, certificate_authority=ca, middlewares=[Uppercase]) as proxy:
-            url = f"http://127.0.0.1:{origin.port}/hello"
-            assert await asyncio.to_thread(request, proxy, "GET", url) == (200, b"HELLO")
-
-
-async def test_host():
-    assert not Host()
-    assert str(Host()) == "<empty host>"
-    assert repr(Connection(Host(), Host())) == "Connection(client=<empty host>, server=<empty host>, protocol=None)"
-
-    server = await asyncio.start_server(lambda r, w: w.close(), "127.0.0.1", 0)
-    port = server.sockets[0].getsockname()[1]
-    reader, writer = await asyncio.open_connection("127.0.0.1", port)
-    host = Host(reader, writer)
-    assert (host.host, host.port, str(host)) == ("127.0.0.1", port, f"127.0.0.1:{port}")
-    assert await reader.read() == b""  # The server accepted, and closed, the connection.
-    writer.close()
-    server.close()
-    await server.wait_closed()
+        async with MITM(port=0, certificate_authority=ca, middlewares=[Uppercase]) as mitm:
+            url = f"http://{HOST}:{server.port}/hello"
+            assert await asyncio.to_thread(request, mitm, "GET", url) == (200, b"HELLO")

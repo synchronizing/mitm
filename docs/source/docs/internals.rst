@@ -80,7 +80,9 @@ Extensions
 
     Event-driven hook extension for the `mitm`.
 
-    Subclass it and override the hooks you need; the rest do nothing. Built-in middlewares can be found in the `mitm.extension.middleware` module.
+    A middleware is a class that is used to extend the `mitm` framework by allowing event-driven hooks to be added to the `mitm` and executed when the appropriate event occurs. Built-in middlewares can be found in the `mitm.extension.middleware` module.
+
+    Note that every hook is optional. Hooks that are not implemented do nothing, and the data hooks return the data untouched.
 
     .. method:: mitm_started(host: str, port: int)
         :async:
@@ -100,7 +102,7 @@ Extensions
     .. method:: client_data(connection: Connection, data: bytes) -> bytes
         :async:
 
-        Called when the `mitm` receives data from the client. The first call for a connection holds the client's initial request (e.g. ``CONNECT``), before the server is connected. Raw TLS is never passed to this method; everything is decrypted beforehand.
+        Called when the `mitm` receives data from the client. The first call happens before the server is connected, and contains the request intended for the `mitm` (e.g. ``CONNECT``). Raw TLS/SSL handshake is not sent through this method. Everything should be decrypted beforehand.
 
         Note:
             This method **must** return back data. Modified or not.
@@ -126,7 +128,7 @@ Extensions
     .. method:: connection_error(connection: Connection, error: Exception)
         :async:
 
-        Called when a connection fails: the server is unreachable, the client rejected the `mitm` certificate, or no protocol matched the client's data. The disconnect hooks are still called afterwards.
+        Called when the connection fails. For example, when the server cannot be reached, or when the client does not trust the `mitm` certificate. The 'disconnected' hooks are still called after this one.
 
 .. class:: mitm.models.Protocol
 
@@ -142,21 +144,22 @@ Extensions
 
     .. attribute:: timeout
 
-            Seconds to wait when connecting to the server.
+            The timeout to use when connecting to the server.
 
     Note that the attributes above must be set per-protocol basis.
 
-    .. method:: resolve(connection: Connection, data: bytes) -> tuple[str, int, bool]
+
+    .. method:: resolve(connection: Connection, data: bytes) -> Tuple[str, int, bool]
         :async:
 
-        Resolves the destination of the connection. Returns a tuple containing the host, port, and bool that indicates if the connection is encrypted. Raises `mitm.models.InvalidProtocol` if the data does not belong to this protocol, so the next protocol is tried.
+        Resolves the destination of the connection. Returns a tuple containing the host, port, and bool that indicates if the connection is encrypted. Raises `InvalidProtocol` if the data is not for this protocol.
 
     .. method:: connect(connection: Connection, host: str, port: int, tls: bool, data: bytes)
         :async:
 
-        Connects to the destination server and sets ``connection.server``. Raises `mitm.models.InvalidProtocol` if the data does not belong to this protocol.
+        Attempts to connect to destination server using the given data, and sets ``connection.server`` if the connection was successful. Raises `InvalidProtocol` if the data is not for this protocol.
 
     .. method:: handle(connection: Connection)
         :async:
 
-        Relays data between the client and the server until either disconnects.
+        Handles the connection between a client and a server.

@@ -8,6 +8,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from typing import List, Optional, Tuple
 
 from mitm.crypto import CertificateAuthority
 
@@ -30,14 +31,20 @@ class Host:
     situations where the `mitm` is running as a separate utility and the developer
     wants to keep the connection open with the host after the `mitm` is done with it.
 
+    Note:
+        See more on `dataclasses <https://docs.python.org/3/library/dataclasses.html>`_.
+
     Args:
         reader: The reader of the host.
         writer: The writer of the host.
         mitm_managed: Whether or not the host is managed by the `mitm`.
 
     Attributes:
-        host: The IP address of the host, or `None` if not connected.
-        port: The port of the host, or `None` if not connected.
+        reader: The reader of the host.
+        writer: The writer of the host.
+        mitm_managed: Whether or not the host is managed by the `mitm`.
+        host: The IP address of the host, or `None` if the host is not connected.
+        port: The port of the host, or `None` if the host is not connected.
 
     Example:
 
@@ -47,17 +54,23 @@ class Host:
             server = Host(reader, writer)
     """
 
-    reader: asyncio.StreamReader | None = None
-    writer: asyncio.StreamWriter | None = None
-    mitm_managed: bool = True
+    reader: Optional[asyncio.StreamReader] = None
+    writer: Optional[asyncio.StreamWriter] = None
+    mitm_managed: Optional[bool] = True
 
     @property
-    def host(self) -> str | None:
+    def host(self) -> Optional[str]:
+        """
+        Returns the IP address of the host.
+        """
         peername = self.writer.get_extra_info("peername") if self.writer else None
         return peername[0] if peername else None
 
     @property
-    def port(self) -> int | None:
+    def port(self) -> Optional[int]:
+        """
+        Returns the port of the host.
+        """
         peername = self.writer.get_extra_info("peername") if self.writer else None
         return peername[1] if peername else None
 
@@ -68,12 +81,22 @@ class Host:
         return self.reader is not None and self.writer is not None
 
     def __repr__(self) -> str:
-        if self:
-            return f"Host({self}, mitm_managed={self.mitm_managed})"
+        """
+        Returns a string representation of the host.
+        """
+        if self.reader and self.writer:
+            return f"Host({self.host}:{self.port}, mitm_managed={self.mitm_managed})"
+
         return f"Host(mitm_managed={self.mitm_managed})"
 
     def __str__(self) -> str:
-        return f"{self.host}:{self.port}" if self else "<empty host>"
+        """
+        Returns a string representation of the host.
+        """
+        if self.reader and self.writer:
+            return f"{self.host}:{self.port}"
+
+        return "<empty host>"
 
 
 @dataclass
@@ -85,13 +108,15 @@ class Connection:
     connection is created the server host is not resolved until the data is intercepted
     and the protocol and destination server is figured out.
 
+    Note:
+        See more on `dataclasses <https://docs.python.org/3/library/dataclasses.html>`_.
+
     Args:
         client: The client host.
         server: The server host.
         protocol: The protocol of the connection.
 
     Example:
-
         .. code-block:: python
 
             client = Host(...)
@@ -102,7 +127,7 @@ class Connection:
 
     client: Host
     server: Host
-    protocol: Protocol | None = None
+    protocol: Optional[Protocol] = None
 
     def __repr__(self) -> str:
         return f"Connection(client={self.client}, server={self.server}, protocol={self.protocol})"
@@ -124,13 +149,18 @@ class Flow(Enum):
     SERVER_TO_CLIENT = 1
 
 
-class Middleware:
+class Middleware(ABC):
     """
     Event-driven hook extension for the `mitm`.
 
-    Subclass it and override the hooks you need; the others do nothing. Data hooks
-    must return the data to forward, modified or not. Built-in middlewares can be found
-    in the `mitm.extension.middleware` module.
+    A middleware is a class that is used to extend the `mitm` framework by allowing
+    event-driven hooks to be added to the `mitm` and executed when the appropriate
+    event occurs. Built-in middlewares can be found in the `mitm.extension.middleware`
+    module.
+
+    Note:
+        Every hook is optional. Hooks that are not implemented do nothing, and the data
+        hooks return the data untouched.
 
     Example:
 
@@ -155,8 +185,8 @@ class Middleware:
         Called when the connection is established with the client.
 
         Note:
-            The `mitm.models.Connection` object is not fully initialized yet, and only
-            contains a valid client `mitm.models.Host`.
+            Note that the `mitm.models.Connection` object is not fully initialized yet,
+            and only contains a valid client `mitm.models.Host`.
         """
 
     async def server_connected(self, connection: Connection):
@@ -172,9 +202,10 @@ class Middleware:
         Called when data is received from the client.
 
         Note:
-            The first call for a connection, made before the server is connected, holds
-            the client's initial request (e.g. ``CONNECT``). Raw TLS is never passed to
-            this method; everything is decrypted beforehand.
+            The first call for a connection happens before the server is connected, and
+            contains the request intended for the `mitm` (e.g. 'CONNECT'). Raw TLS/SSL
+            handshake is not sent through this method. Everything should be decrypted
+            beforehand.
 
         Args:
             connection: The connection the data was received on.
@@ -210,8 +241,11 @@ class Middleware:
 
     async def connection_error(self, connection: Connection, error: Exception):
         """
-        Called when a connection fails, e.g. the server is unreachable or the client
-        rejected the `mitm` certificate. The disconnect hooks are still called after.
+        Called when the connection fails. For example, when the server cannot be reached,
+        or when the client does not trust the `mitm` certificate.
+
+        Note:
+            The 'disconnected' hooks are still called after this one.
         """
 
     def __repr__(self) -> str:
@@ -222,12 +256,12 @@ class InvalidProtocol(Exception):
     """
     Exception raised when the protocol did not work.
 
-    Raising this error from `Protocol.resolve` or `Protocol.connect` makes `mitm.MITM`
-    try the next protocol.
+    Throwing this error from `Protocol.resolve` or `Protocol.connect` will continue the
+    search for a valid protocol.
     """
 
 
-class Protocol(ABC):
+class Protocol(ABC):  # pragma: no cover
     """
     Custom protocol implementation.
 
@@ -238,7 +272,7 @@ class Protocol(ABC):
     Parameters:
         bytes_needed: Minimum number of bytes needed to determine the protocol.
         buffer_size: The size of the buffer to use when reading data.
-        timeout: Seconds to wait when connecting to the server.
+        timeout: The timeout to use when connecting to the server.
     """
 
     bytes_needed: int
@@ -247,8 +281,8 @@ class Protocol(ABC):
 
     def __init__(
         self,
-        certificate_authority: CertificateAuthority | None = None,
-        middlewares: list[Middleware] | None = None,
+        certificate_authority: Optional[CertificateAuthority] = None,
+        middlewares: Optional[List[Middleware]] = None,
     ):
         """
         Initializes the protocol.
@@ -257,11 +291,11 @@ class Protocol(ABC):
             certificate_authority: The certificate authority to use for the connection.
             middlewares: The middlewares to use for the connection.
         """
-        self.certificate_authority = certificate_authority or CertificateAuthority()
-        self.middlewares = middlewares or []
+        self.certificate_authority = certificate_authority if certificate_authority else CertificateAuthority()
+        self.middlewares = middlewares if middlewares else []
 
     @abstractmethod
-    async def resolve(self, connection: Connection, data: bytes) -> tuple[str, int, bool]:
+    async def resolve(self, connection: Connection, data: bytes) -> Tuple[str, int, bool]:
         """
         Resolves the destination of the connection.
 
@@ -274,31 +308,32 @@ class Protocol(ABC):
             is encrypted.
 
         Raises:
-            InvalidProtocol: If the data does not belong to this protocol.
+            InvalidProtocol: If the data is not for this protocol.
         """
         raise NotImplementedError
 
     @abstractmethod
     async def connect(self, connection: Connection, host: str, port: int, tls: bool, data: bytes):
         """
-        Connects to the destination server, setting `connection.server`.
+        Attempts to connect to destination server using the given data, and sets
+        `connection.server` if the connection was successful.
 
         Args:
             connection: Connection object containing a client host.
-            host: The destination host.
-            port: The destination port.
+            host: The hostname of the destination server.
+            port: The port of the destination server.
             tls: Whether the connection is encrypted.
             data: The initial incoming data from the client.
 
         Raises:
-            InvalidProtocol: If the data does not belong to this protocol.
+            InvalidProtocol: If the data is not for this protocol.
         """
         raise NotImplementedError
 
     @abstractmethod
     async def handle(self, connection: Connection):
         """
-        Relays data between the client and the server until either disconnects.
+        Handles the connection between a client and a server.
 
         Args:
             connection: Client/server connection to relay.
